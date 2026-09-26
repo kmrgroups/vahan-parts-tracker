@@ -1480,7 +1480,7 @@ function shellHtml() {
 }
 function wireShell() {
   $('[data-signout]')?.addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
-  $('[data-theme]')?.addEventListener('click', () => {
+  $('button[data-theme]')?.addEventListener('click', () => {
     const cur = document.documentElement.dataset.theme || 'light';
     const nx = cur === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = nx; S.ui.theme3 = nx; saveUI(); render();
   });
