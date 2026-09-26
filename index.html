@@ -4,131 +4,170 @@
 <meta charset="utf-8">
 <script>window.APP_CONFIG = /*CFG*/{"mode": "cloud", "url": "https://rmsswxrcdrsvlbgpurdp.supabase.co", "key": "sb_publishable_ZfS8ysfOpwIwR_CC0EqIhA_Oeo2J-Qm"}/*END*/;</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#16202B">
+<meta name="theme-color" content="#0c1220">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Child Parts Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Narrow:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-:root{
-  --ink:#16202B; --ink-2:#1F2B38; --ink-text:#C9D3DD; --ink-dim:#7F8E9C;
-  --paper:#ECEFF3; --panel:#FFFFFF; --panel-2:#F6F8FA; --line:#D6DCE3; --line-2:#E6EAEF;
-  --text:#1B2733; --muted:#5C6A78; --steel:#2B5A86; --steel-2:#E3ECF5; --steel-ink:#fff;
-  --red:#C8382E; --red-bg:#FBE9E7; --amber:#C98500; --amber-bg:#FCF3DD; --green:#1E8A5A; --green-bg:#E3F4EC;
+:root,:root[data-theme="dark"]{
+  /* Mini-MES look: deep navy, amber brand, sky / emerald / rose / purple signals */
+  --ink:#0b101d; --ink-2:#141c2e; --ink-text:#94a3b8; --ink-dim:#64748b; --head:#0c1220;
+  --paper:#090d16; --panel:#0e1422; --panel-2:#131b2b; --line:#1e293b; --line-2:#182133;
+  --text:#e2e8f0; --strong:#ffffff; --muted:#94a3b8;
+  --brand:#f59e0b; --brand-2:rgba(245,158,11,.14); --brand-line:rgba(245,158,11,.35); --brand-ink:#0b0f17; --brand-text:#fcd34d;
+  --steel:#38bdf8; --steel-2:rgba(14,165,233,.15); --steel-ink:#04121c;
+  --red:#fb7185; --red-bg:rgba(244,63,94,.15); --amber:#fbbf24; --amber-bg:rgba(245,158,11,.15);
+  --green:#34d399; --green-bg:rgba(16,185,129,.15); --purple:#c084fc; --purple-bg:rgba(168,85,247,.15);
+  --thead:#070b14; --input:#0a1020;
   --r-lg:12px; --r:8px; --r-sm:6px;
-  --shadow:0 1px 2px rgba(22,32,43,.06),0 4px 16px rgba(22,32,43,.06);
-  --f:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --fn:"Archivo Narrow","Arial Narrow",system-ui,sans-serif;
-  color-scheme:light;
+  --shadow:none;
+  --f:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --fn:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --ink:#0C1218; --ink-2:#16202B; --paper:#10171F; --panel:#18222D; --panel-2:#1D2935; --line:#2A3745; --line-2:#223040;
-  --text:#E2E8EE; --muted:#95A3B1; --steel:#6FA3D6; --steel-2:#1E3248; --steel-ink:#0C1218;
-  --red:#EF6B61; --red-bg:#3A1F1D; --amber:#E9B03C; --amber-bg:#3A2F17; --green:#46C08A; --green-bg:#173327;
-  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
-}}
-:root[data-theme="dark"]{
-  --ink:#0C1218; --ink-2:#16202B; --paper:#10171F; --panel:#18222D; --panel-2:#1D2935; --line:#2A3745; --line-2:#223040;
-  --text:#E2E8EE; --muted:#95A3B1; --steel:#6FA3D6; --steel-2:#1E3248; --steel-ink:#0C1218;
-  --red:#EF6B61; --red-bg:#3A1F1D; --amber:#E9B03C; --amber-bg:#3A2F17; --green:#46C08A; --green-bg:#173327;
-  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
+:root[data-theme="light"]{
+  --ink:#0b101d; --ink-2:#141c2e; --ink-text:#94a3b8; --ink-dim:#64748b; --head:#0c1220;
+  --paper:#eef1f6; --panel:#ffffff; --panel-2:#f5f7fb; --line:#d5dbe5; --line-2:#e5e9f0;
+  --text:#1b2433; --strong:#0b1220; --muted:#5b6778;
+  --brand:#d97706; --brand-2:rgba(217,119,6,.12); --brand-line:rgba(217,119,6,.4); --brand-ink:#fff; --brand-text:#b45309;
+  --steel:#0284c7; --steel-2:rgba(2,132,199,.1); --steel-ink:#fff;
+  --red:#e11d48; --red-bg:rgba(225,29,72,.1); --amber:#b45309; --amber-bg:rgba(217,119,6,.12);
+  --green:#059669; --green-bg:rgba(5,150,105,.1); --purple:#9333ea; --purple-bg:rgba(147,51,234,.1);
+  --thead:#f1f4f9; --input:#ffffff;
+  --shadow:0 1px 2px rgba(15,23,42,.05),0 4px 14px rgba(15,23,42,.05);
+  color-scheme:light;
 }
 *{box-sizing:border-box}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html,body{height:100%;margin:0}
-body{background:var(--paper);color:var(--text);font:15px/1.5 var(--f);-webkit-font-smoothing:antialiased}
+body{background:var(--paper);color:var(--text);font:14px/1.5 var(--f);-webkit-font-smoothing:antialiased}
+::selection{background:rgba(245,158,11,.3)}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--steel)}
-:focus-visible{outline:2px solid var(--steel);outline-offset:2px}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .num,.mono{font-family:var(--fn);font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
 .hidden{display:none!important}
 
-/* ---------- shell ---------- */
-.shell{display:grid;grid-template-columns:236px 1fr;min-height:100%}
-.side{background:var(--ink);color:var(--ink-text);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:18px 12px}
-.brand{display:flex;gap:10px;align-items:center;padding:4px 8px 18px}
-.brand img,.brand .mark{width:34px;height:34px;border-radius:8px;object-fit:contain;background:#fff;flex:none}
-.brand .mark{display:grid;place-items:center;background:var(--steel);color:#fff;font-weight:700}
-.brand b{display:block;color:#fff;font-size:15px;line-height:1.2}
-.brand small{color:var(--ink-dim);font-size:12px}
-.nav{display:flex;flex-direction:column;gap:2px;flex:1;overflow:auto}
-.nav a{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:var(--r);color:var(--ink-text);text-decoration:none;font-size:14.5px}
-.nav a:hover{background:var(--ink-2)}
-.nav a.on{background:var(--ink-2);color:#fff;box-shadow:inset 3px 0 0 var(--steel)}
-.nav svg{width:19px;height:19px;flex:none;opacity:.85}
-.nav .sep{height:1px;background:var(--ink-2);margin:10px 6px}
-.nav .badge{margin-left:auto}
-.side .who{border-top:1px solid var(--ink-2);padding:12px 8px 0;font-size:13px;display:flex;gap:10px;align-items:center}
-.side .who button{margin-left:auto;background:none;border:1px solid var(--ink-2);color:var(--ink-text);border-radius:var(--r-sm);padding:4px 8px;cursor:pointer;font-size:12px}
-.avatar{width:30px;height:30px;border-radius:50%;background:var(--steel);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px;flex:none}
-
-.main{min-width:0;display:flex;flex-direction:column}
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(8px);display:flex;align-items:center;gap:12px;padding:14px 28px;border-bottom:1px solid var(--line-2)}
-.top h1{font-size:21px;margin:0;font-weight:650;letter-spacing:-.01em}
-.top .sub{font-size:13px;color:var(--muted)}
-.top .grow{flex:1;min-width:0}
-.gsearch{position:relative;width:min(340px,34vw)}
-.gsearch input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
-.gsearch svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;opacity:.55}
-.gresults{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);max-height:60vh;overflow:auto;z-index:40}
-.gresults a{display:block;padding:9px 12px;border-bottom:1px solid var(--line-2);text-decoration:none;color:var(--text);font-size:14px}
+/* ---------- shell: dark control-room header, sidebar, content ---------- */
+.shell{min-height:100%;display:flex;flex-direction:column}
+.hdr{position:sticky;top:0;z-index:40;background:rgba(12,18,32,.96);backdrop-filter:blur(10px);border-bottom:1px solid #1e293b;padding:10px 16px;color:#e2e8f0}
+.hrow{display:flex;align-items:center;gap:12px}
+.hrow2{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(30,41,59,.7)}
+.hrow2 .acts{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
+.hrow2 .lbl{font-size:11px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-right:2px;white-space:nowrap}
+.logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#ea580c);display:grid;place-items:center;color:#0b0f17;box-shadow:0 8px 22px rgba(245,158,11,.2);flex:none;overflow:hidden;font-weight:800}
+.logo svg{width:21px;height:21px}
+.logo img{width:100%;height:100%;object-fit:contain;background:#fff}
+.hbrand{min-width:0;flex:0 1 auto}
+@media (max-width:900px){.hbrand{flex:1}}
+.hbrand h1{margin:0;font-size:15px;font-weight:700;color:#fff;letter-spacing:-.01em;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tagpill{font-size:10px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:999px;background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3);flex:none}
+.hbrand p{margin:2px 0 0;font-size:12px;color:#94a3b8;display:flex;gap:8px;align-items:center;white-space:nowrap;overflow:hidden}
+.hbrand p svg{width:13px;height:13px;color:#f59e0b;flex:none}
+.hbrand .gst{color:#34d399;font-family:var(--fn);font-size:11px}
+.gsearch{position:relative;flex:1;max-width:440px;margin:0 auto}
+.gsearch input{width:100%;padding:8px 12px 8px 34px;border:1px solid rgba(51,65,85,.8);border-radius:8px;background:rgba(15,23,42,.9);color:#f1f5f9;font-size:12.5px;outline:none}
+.gsearch input::placeholder{color:#64748b}
+.gsearch input:focus{border-color:#f59e0b}
+.gsearch svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;color:#94a3b8}
+.gresults{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 20px 40px rgba(0,0,0,.35);max-height:60vh;overflow:auto;z-index:45}
+.gresults a{display:block;padding:9px 12px;border-bottom:1px solid var(--line-2);text-decoration:none;color:var(--text);font-size:13px}
 .gresults a:hover{background:var(--panel-2)}
 .gresults small{color:var(--muted);display:block}
-.iconbtn{position:relative;width:40px;height:40px;border-radius:var(--r);border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;cursor:pointer;flex:none}
-.iconbtn svg{width:19px;height:19px}
-.iconbtn .dot{position:absolute;top:5px;right:5px;min-width:17px;height:17px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;display:grid;place-items:center;padding:0 4px;font-weight:600}
-.view{padding:24px 28px 60px;max-width:1480px;width:100%}
-.lede{color:var(--muted);margin:-6px 0 18px;max-width:72ch;font-size:14px}
+.hright{display:flex;align-items:center;gap:8px;flex:none}
+.hchip{display:flex;align-items:center;gap:6px;background:#0f172a;border:1px solid rgba(51,65,85,.8);border-radius:8px;padding:6px 10px;font-size:12px;color:#e2e8f0;white-space:nowrap}
+.hchip svg{width:14px;height:14px;color:#38bdf8}
+.iconbtn{position:relative;width:36px;height:36px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;display:grid;place-items:center;cursor:pointer;flex:none}
+.iconbtn:hover{background:#334155}
+.iconbtn svg{width:17px;height:17px}
+.iconbtn .dot{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;border-radius:9px;background:#f43f5e;color:#fff;font-size:10px;display:grid;place-items:center;padding:0 4px;font-weight:700}
+.act{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:550;border:1px solid transparent;cursor:pointer;white-space:nowrap;font-family:inherit;line-height:1.3}
+.act svg{width:14px;height:14px}
+.act.pri{background:#f59e0b;color:#0b0f17;font-weight:700}.act.pri:hover{background:#fbbf24}
+.act.sky{background:rgba(14,165,233,.2);color:#7dd3fc;border-color:rgba(14,165,233,.3)}.act.sky:hover{background:rgba(14,165,233,.3)}
+.act.em{background:rgba(16,185,129,.2);color:#6ee7b7;border-color:rgba(16,185,129,.3)}.act.em:hover{background:rgba(16,185,129,.3)}
+.act.pu{background:rgba(168,85,247,.2);color:#d8b4fe;border-color:rgba(168,85,247,.3)}.act.pu:hover{background:rgba(168,85,247,.3)}
+.act.plain{background:#1e293b;color:#cbd5e1;border-color:#334155}.act.plain:hover{background:#334155}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#34d399;white-space:nowrap}
+.live i{width:8px;height:8px;border-radius:50%;background:#34d399;animation:blink 1.8s infinite}
+@keyframes blink{50%{opacity:.35}}
+.frame{display:flex;flex:1;min-height:0}
+.side{width:236px;flex:none;background:var(--ink);color:var(--ink-text);border-right:1px solid #1e293b;position:sticky;top:var(--hh,108px);height:calc(100vh - var(--hh,108px));display:flex;flex-direction:column;padding:12px}
+.nav{display:flex;flex-direction:column;gap:2px;flex:1;overflow:auto}
+.nav a{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;color:#94a3b8;text-decoration:none;font-size:12.5px;font-weight:550;border:1px solid transparent}
+.nav a:hover{background:rgba(30,41,59,.6);color:#e2e8f0}
+.nav a.on{background:rgba(245,158,11,.15);color:#fcd34d;border-color:rgba(245,158,11,.3)}
+.nav a.on svg{color:#fbbf24;opacity:1}
+.nav svg{width:16px;height:16px;flex:none;opacity:.9}
+.nav .badge{margin-left:auto}
+.side .who{border-top:1px solid #1e293b;padding:12px 4px 0;font-size:12.5px;display:flex;gap:10px;align-items:center}
+.side .who button{margin-left:auto;background:none;border:1px solid #334155;color:#cbd5e1;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11.5px}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--brand);color:var(--brand-ink);display:grid;place-items:center;font-weight:700;font-size:12px;flex:none}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.phead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:18px 24px 0}
+.phead h2{margin:0;font-size:19px;font-weight:700;color:var(--strong);letter-spacing:-.01em}
+.phead .sub{font-size:12.5px;color:var(--muted)}
+.view{padding:14px 24px 60px;max-width:1600px;width:100%}
+.lede{color:var(--muted);margin:0 0 16px;max-width:80ch;font-size:13px}
 
 /* ---------- mobile ---------- */
 .mbar{display:none}
+@media (max-width:1100px){.hchip.role{display:none}}
 @media (max-width:900px){
-  .shell{grid-template-columns:1fr}
   .side{display:none}
-  .top{padding:12px 16px}
-  .top h1{font-size:18px}
+  .hdr{padding:8px 12px}
+  .hbrand p{display:none}
+  .hbrand h1{font-size:14px}
+  .hbrand .tagpill{display:none}
   .gsearch{display:none}
-  .gsearch.open{display:block;position:fixed;left:12px;right:12px;top:calc(62px + env(safe-area-inset-top,0px));width:auto;z-index:50}
-  .view{padding:16px 14px 110px}
-  .mbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
-  .mbar a{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);text-decoration:none;padding:4px 0;position:relative}
-  .mbar a.on{color:var(--steel);font-weight:600}
-  .mbar svg{width:22px;height:22px}
+  .gsearch.open{display:block;position:fixed;left:12px;right:12px;top:calc(56px + env(safe-area-inset-top,0px));max-width:none;z-index:50}
+  .hrow2{margin-top:8px}
+  .hrow2 .acts{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .hrow2 .acts::-webkit-scrollbar{display:none}
+  .hrow2 .live{display:none}
+  .phead{padding:14px 14px 0}.phead h2{font-size:17px}
+  .view{padding:12px 12px 110px}
+  .mbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:#0c1220;border-top:1px solid #1e293b;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
+  .mbar a{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:#94a3b8;text-decoration:none;padding:4px 0;position:relative}
+  .mbar a.on{color:#fbbf24;font-weight:650}
+  .mbar svg{width:21px;height:21px}
   .mbar .badge{position:absolute;top:0;right:calc(50% - 22px)}
   .only-desk{display:none!important}
 }
 @media (min-width:901px){.only-mob{display:none!important}}
 
 /* ---------- primitives ---------- */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 16px;border-radius:var(--r);border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:550;font-size:14px;text-decoration:none;color:var(--text);white-space:nowrap;min-height:40px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:7px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--panel-2);cursor:pointer;font-weight:600;font-size:13px;text-decoration:none;color:var(--text);white-space:nowrap;min-height:36px}
 .btn:hover{border-color:var(--muted)}
-.btn.pri{background:var(--steel);border-color:var(--steel);color:var(--steel-ink)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:700}
 .btn.pri:hover{filter:brightness(1.08)}
 .btn.danger{color:var(--red);border-color:color-mix(in srgb,var(--red) 40%,var(--line))}
 .btn.ghost{border-color:transparent;background:transparent}
-.btn.sm{padding:5px 10px;min-height:32px;font-size:13px}
-.btn svg{width:16px;height:16px}
+.btn.sm{padding:4px 10px;min-height:30px;font-size:12px}
+.btn svg{width:15px;height:15px}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
-.wa{color:#128C4B}
+.wa{color:#25a55f}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .spacer{flex:1}
-.badge{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;font-size:11.5px;font-weight:650;background:var(--red);color:#fff}
-.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12.5px;font-weight:550;background:var(--panel-2);border:1px solid var(--line-2);white-space:nowrap}
+.badge{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 6px;border-radius:10px;font-size:10.5px;font-weight:700;background:#f43f5e;color:#fff}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:1px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);white-space:nowrap}
 .chip::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.85}
 .chip.nodot::before{display:none}
 .chip.red{color:var(--red);background:var(--red-bg);border-color:transparent}
 .chip.amber{color:var(--amber);background:var(--amber-bg);border-color:transparent}
 .chip.green{color:var(--green);background:var(--green-bg);border-color:transparent}
 .chip.steel{color:var(--steel);background:var(--steel-2);border-color:transparent}
-.panel{background:var(--panel);border:1px solid var(--line-2);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.chip.purple{color:var(--purple);background:var(--purple-bg);border-color:transparent}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow)}
 .panel>header{display:flex;align-items:center;gap:10px;padding:14px 18px 0}
-.panel>header h3{margin:0;font-size:15px;font-weight:650}
-.panel>header p{margin:0;color:var(--muted);font-size:13px}
+.panel>header h3{margin:0;font-size:14px;font-weight:650;color:var(--strong)}
+.panel>header p{margin:0;color:var(--muted);font-size:12px}
 .panel .body{padding:14px 18px 18px}
 .empty{padding:40px 20px;text-align:center;color:var(--muted)}
 .empty b{display:block;color:var(--text);font-size:16px;margin-bottom:4px}
@@ -137,18 +176,18 @@ a{color:var(--steel)}
 /* ---------- toolbar / filters ---------- */
 .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .toolbar .search{flex:1 1 240px;max-width:380px;position:relative}
-.toolbar .search input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.toolbar .search input{width:100%;padding:8px 12px 8px 34px;border:1px solid var(--line);border-radius:var(--r);background:var(--input);font-size:13px}
 .toolbar .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;opacity:.55}
 .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:3px;gap:2px;overflow-x:auto;max-width:100%}
-.seg button{border:0;background:none;padding:6px 12px;border-radius:5px;cursor:pointer;font-size:13.5px;color:var(--muted);white-space:nowrap}
-.seg button.on{background:var(--steel-2);color:var(--steel);font-weight:600}
-.sel{padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);max-width:220px;min-height:40px}
+.seg button{border:0;background:none;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.seg button.on{background:var(--brand);color:var(--brand-ink);font-weight:700}
+.sel{padding:7px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--input);max-width:240px;min-height:36px;font-size:13px}
 
 /* ---------- table (cards on phones) ---------- */
 .tablewrap{overflow-x:auto;border-radius:var(--r-lg)}
-table.dt{width:100%;border-collapse:collapse;font-size:14px}
-.dt th{text-align:left;font-weight:600;font-size:12.5px;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;background:var(--panel);position:sticky;top:0}
-.dt th.sorted{color:var(--steel)}
+table.dt{width:100%;border-collapse:collapse;font-size:13px}
+.dt th{text-align:left;font-weight:600;font-size:12px;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;background:var(--thead);position:sticky;top:0}
+.dt th.sorted{color:var(--brand-text)}
 .dt td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
 .dt tbody tr{cursor:pointer}
 .dt tbody tr:hover td{background:var(--panel-2)}
@@ -157,7 +196,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:14px}
 .dt .lamp i{display:block;width:4px;height:28px;border-radius:2px;background:var(--line)}
 .lamp.red i{background:var(--red)}.lamp.amber i{background:var(--amber)}.lamp.green i{background:var(--green)}
 .dt td .t{font-weight:550}
-.dt td small{display:block;color:var(--muted);font-size:12.5px}
+.dt td small{display:block;color:var(--muted);font-size:11.5px}
 .more{display:flex;justify-content:center;padding:14px;gap:10px;align-items:center;color:var(--muted);font-size:13px}
 @media (max-width:700px){
   .tablewrap{overflow:visible}
@@ -190,11 +229,11 @@ table.dt{width:100%;border-collapse:collapse;font-size:14px}
 .andon .msg span{color:#A9B6C3;font-size:13px}
 .andon .msg .btn{margin-top:10px;background:transparent;color:#fff;border-color:#3A4755}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:12px}
-.kpi{background:var(--panel);border:1px solid var(--line-2);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;text-align:left}
-.kpi:hover{border-color:var(--line)}
-.kpi span{display:block;font-size:12.5px;color:var(--muted)}
-.kpi b{display:block;font:650 26px/1.2 var(--fn);font-variant-numeric:tabular-nums;margin-top:4px}
-.kpi small{color:var(--muted);font-size:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px;box-shadow:var(--shadow);cursor:pointer;text-align:left;color:inherit;font:inherit}
+.kpi:hover{border-color:var(--brand-line)}
+.kpi span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.kpi b{display:block;font:700 24px/1.2 var(--f);font-variant-numeric:tabular-nums;margin-top:4px;color:var(--strong)}
+.kpi small{color:var(--muted);font-size:11px}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
 .grid3{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:16px}
 .chartbox{position:relative;height:260px}
@@ -237,9 +276,9 @@ table.dt{width:100%;border-collapse:collapse;font-size:14px}
 @media (max-width:560px){.fgrid{grid-template-columns:1fr}}
 .field label{display:block;font-size:13px;font-weight:550;margin-bottom:5px}
 .field label em{color:var(--red);font-style:normal}
-.field input,.field select,.field textarea{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);min-height:40px}
+.field input,.field select,.field textarea{width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--input);min-height:38px}
 .field textarea{min-height:76px;resize:vertical}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--steel);outline:none;box-shadow:0 0 0 3px var(--steel-2)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--brand);outline:none;box-shadow:0 0 0 3px var(--brand-2)}
 .field .hint{font-size:12px;color:var(--muted);margin-top:4px}
 .field .computed{padding:9px 11px;border-radius:var(--r-sm);background:var(--panel-2);border:1px dashed var(--line);font-family:var(--fn);font-weight:600;min-height:40px}
 .field.bad input,.field.bad select{border-color:var(--red)}
@@ -253,13 +292,13 @@ table.dt{width:100%;border-collapse:collapse;font-size:14px}
 /* ---------- toast ---------- */
 .toasts{position:fixed;right:20px;bottom:20px;z-index:80;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100% - 24px))}
 @media (max-width:900px){.toasts{left:12px;right:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
-.toast{background:var(--ink);color:#fff;border-radius:var(--r);padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;animation:fade .2s}
+.toast{background:#111a2c;border:1px solid #1e293b;color:#fff;border-radius:var(--r);padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.25);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;animation:fade .2s}
 .toast.err{background:var(--red)}
 .toast .btn{background:#fff;color:#16202B;border:0;min-height:32px;padding:5px 10px;font-size:13px}
 .toast .x{margin-left:auto;background:none;border:0;color:#fff;opacity:.7;cursor:pointer;font-size:18px}
 
 /* ---------- notifications panel ---------- */
-.npanel{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));right:16px;width:min(400px,calc(100% - 24px));max-height:70vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 20px 40px rgba(0,0,0,.18);z-index:55}
+.npanel{position:fixed;top:calc(var(--hh,108px) - 40px + env(safe-area-inset-top,0px));right:16px;width:min(400px,calc(100% - 24px));max-height:70vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:0 20px 40px rgba(0,0,0,.18);z-index:55}
 .npanel header{display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line-2);position:sticky;top:0;background:var(--panel)}
 .npanel header b{flex:1}
 .nitem{display:block;padding:11px 14px;border-bottom:1px solid var(--line-2);text-decoration:none;color:var(--text);font-size:13.5px}
@@ -276,7 +315,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:14px}
 .gate .form{padding:56px;display:flex;flex-direction:column;justify-content:center;max-width:560px;width:100%;margin:0 auto}
 .gate .form h2{margin:0 0 6px;font-size:24px}
 .choice{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:var(--r-lg);padding:18px;margin-top:12px;cursor:pointer}
-.choice:hover{border-color:var(--steel)}
+.choice:hover{border-color:var(--brand)}
 .choice b{display:block;font-size:16px}
 .choice span{color:var(--muted);font-size:14px}
 @media (max-width:860px){.gate{grid-template-columns:1fr}.gate .art{padding:32px 22px}.gate .form{padding:28px 20px}}
@@ -285,7 +324,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:14px}
 .settings{display:grid;grid-template-columns:220px 1fr;gap:20px}
 .stabs{display:flex;flex-direction:column;gap:2px}
 .stabs button{text-align:left;border:0;background:none;padding:9px 12px;border-radius:var(--r);cursor:pointer;color:var(--muted);font-size:14px}
-.stabs button.on{background:var(--panel);color:var(--text);font-weight:600;box-shadow:var(--shadow)}
+.stabs button.on{background:var(--brand-2);color:var(--brand-text);font-weight:650;box-shadow:inset 0 0 0 1px var(--brand-line)}
 @media (max-width:900px){.settings{grid-template-columns:1fr}.stabs{flex-direction:row;overflow-x:auto}.stabs button{white-space:nowrap}}
 .listed{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
 .listed .chip{padding:4px 6px 4px 10px}
@@ -303,11 +342,11 @@ pre.code{background:var(--panel-2);border:1px solid var(--line);border-radius:va
 .nav .sep{height:auto;background:none;margin:12px 10px 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim);font-weight:600}
 .nav .sep:empty{height:1px;background:var(--ink-2);margin:10px 6px}
 .flow{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:0 0 18px}
-.flow a{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line-2);text-decoration:none;color:var(--text);min-width:0;position:relative}
-.flow a:hover{border-color:var(--steel)}
-.flow a.on{border-color:var(--steel);box-shadow:inset 0 -3px 0 var(--steel)}
+.flow a{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);text-decoration:none;color:var(--text);min-width:0;position:relative}
+.flow a:hover{border-color:var(--brand-line)}
+.flow a.on{border-color:var(--brand-line);box-shadow:inset 0 -3px 0 var(--brand)}
 .flow b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--steel-2);color:var(--steel);font-size:13px;flex:none}
-.flow a.on b{background:var(--steel);color:var(--steel-ink)}
+.flow a.on b{background:var(--brand);color:var(--brand-ink)}
 .flow span{font-size:13.5px;font-weight:600;min-width:0}
 .flow small{display:block;font-weight:500;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .flow small.amber,.tamber{color:var(--amber)!important}.flow small.red,.tred{color:var(--red)!important}.tgreen{color:var(--green)!important}
@@ -321,10 +360,10 @@ pre.code{background:var(--panel-2);border:1px solid var(--line);border-radius:va
 .opchips{display:flex;flex-wrap:wrap;align-items:center;gap:2px}
 .opchips .arr{font-style:normal;color:var(--muted);font-size:12px;margin:0 1px}
 .opchip{display:inline-grid;place-items:center;min-width:30px;height:22px;padding:0 5px;border-radius:5px;font:600 11px/1 var(--fn);letter-spacing:.02em;border:1px solid transparent;cursor:default}
-.opchip.done{background:var(--green);color:#fff}
+.opchip.done{background:#10b981;color:#fff}
 .opchip.green{background:var(--steel-2);color:var(--steel);border-color:var(--steel)}
 .opchip.amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber)}
-.opchip.red{background:var(--red);color:#fff}
+.opchip.red{background:#f43f5e;color:#fff}
 .opchip.plan{background:transparent;color:var(--muted);border:1px dashed var(--line)}
 .legend{display:inline-flex;flex-wrap:wrap;gap:6px;align-items:center;margin-left:6px}
 .legend .opchip{min-width:20px;height:18px}
@@ -341,12 +380,12 @@ pre.code{background:var(--panel-2);border:1px solid var(--line);border-radius:va
 .stepper li b{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--line-2);color:var(--muted);font-size:12px;flex:none}
 .stepper li span{font-size:13px;font-weight:600;min-width:0}
 .stepper li small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.stepper li.done{border-top-color:var(--green)}.stepper li.done b{background:var(--green);color:#fff}
+.stepper li.done{border-top-color:var(--green)}.stepper li.done b{background:#10b981;color:#fff}
 .stepper li.now{border-top-color:var(--steel);background:var(--steel-2)}.stepper li.now b{background:var(--steel);color:var(--steel-ink)}
 @media (max-width:1000px){.stepper{grid-template-columns:repeat(4,1fr)}}
 @media (max-width:520px){.stepper{grid-template-columns:repeat(2,1fr)}}
-.nextup{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-radius:var(--r);background:var(--panel-2);border:1px dashed var(--steel)}
-.nextup span{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--steel);font-weight:700}
+.nextup{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-radius:var(--r);background:var(--brand-2);border:1px dashed var(--brand-line)}
+.nextup span{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--brand-text);font-weight:700}
 .nextup b{flex:1;min-width:180px}
 .kpis.wide{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
 .kpi.static{cursor:default}
@@ -363,7 +402,7 @@ pre.code{background:var(--panel-2);border:1px solid var(--line);border-radius:va
 .duel li:hover{background:var(--panel-2)}
 .duel li div{flex:1;min-width:0}.duel b{display:block;font-size:13.5px}.duel small{color:var(--muted);font-size:12.5px}.duel time{font-size:13px;color:var(--muted)}
 .wgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
-.wcard{background:var(--panel);border:1px solid var(--line-2);border-left:4px solid var(--green);border-radius:var(--r-lg);box-shadow:var(--shadow);display:flex;flex-direction:column}
+.wcard{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--green);border-radius:var(--r-lg);box-shadow:var(--shadow);display:flex;flex-direction:column}
 .wcard.amber{border-left-color:var(--amber)}.wcard.red{border-left-color:var(--red)}.wcard.done{border-left-color:var(--muted);opacity:.8}
 .wcard header{display:flex;gap:8px;align-items:center;padding:12px 14px 0}
 .wcard header time{font-size:12.5px;color:var(--muted)}
@@ -389,7 +428,7 @@ details.panel[open]>summary::after{content:"▴"}
 .need b{display:block}.need span{display:block;font-size:14px}.need small{display:block;color:var(--muted);font-size:12.5px}
 table.dt th.sel,table.dt td.sel{width:34px;padding-right:0}
 table.dt td.sel input{width:18px;height:18px}
-input.cell,select.cell{width:100%;min-width:80px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel)}
+input.cell,select.cell{width:100%;min-width:80px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--input)}
 input.cell.num{text-align:right;max-width:110px}
 .iconbtn.sm{width:30px;height:30px}.iconbtn.sm svg{width:14px;height:14px}
 .sepv{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
@@ -412,6 +451,87 @@ html,body{overflow-x:clip;max-width:100%}.main,.view{min-width:0;max-width:100vw
   .dash-head{gap:12px}
 }
 @media (max-width:700px){.dt.mini .pcell{min-width:0;gap:4px}.dt.mini .pbar{min-width:0;height:6px}.dt.mini .pcell small{min-width:0;font-size:11px}}
+
+/* ---------- Mini-MES dashboards ---------- */
+.dtabs{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;background:var(--panel);border:1px solid var(--line);padding:10px;border-radius:var(--r-lg);margin-bottom:16px}
+.dtabs .tabs{display:flex;flex-wrap:wrap;gap:6px}
+.dtabs .tabs button{border:0;padding:7px 12px;border-radius:8px;font:550 12px/1.3 var(--f);background:var(--panel-2);color:var(--muted);cursor:pointer}
+.dtabs .tabs button:hover{color:var(--text);background:var(--line)}
+.dtabs .tabs button.on{background:var(--brand);color:var(--brand-ink);font-weight:700}
+.dtabs .ctx{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dtabs .ctx strong{color:var(--brand-text)}
+.dtabs .seg button{padding:4px 9px;font-size:12px}
+@media (max-width:700px){.dtabs .tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;width:100%}.dtabs .tabs button{white-space:nowrap}}
+.mk{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:16px}
+@media (max-width:1300px){.mk{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:600px){.mk{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}}
+.mkc{padding:14px;border-radius:var(--r-lg);background:var(--panel);border:1px solid var(--line);text-align:left;cursor:pointer;color:inherit;font:inherit;min-width:0;box-shadow:var(--shadow)}
+.mkc:hover{border-color:var(--brand-line)}
+.mkc p{margin:0}
+.mkc .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkc .v{font-size:24px;font-weight:700;color:var(--strong);margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+.mkc .s{font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:600px){.mkc{padding:11px}.mkc .v{font-size:20px}}
+.t-amber{color:var(--amber)!important}.t-red{color:var(--red)!important}.t-green{color:var(--green)!important}.t-sky{color:var(--steel)!important}.t-purple{color:var(--purple)!important}.t-brand{color:var(--brand-text)!important}.t-muted{color:var(--muted)!important}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px}
+@media (max-width:1100px){.g3,.g2{grid-template-columns:1fr}}
+.card{padding:16px;border-radius:var(--r-lg);background:var(--panel);border:1px solid var(--line);min-width:0;box-shadow:var(--shadow)}
+.card>.ch{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.card>.ch h3{margin:0;font-size:14px;font-weight:650;color:var(--strong)}
+.card>.ch>span{font-size:11px;white-space:nowrap}
+.card .chartbox{height:260px}
+.lb{display:block;width:100%;margin-bottom:11px;cursor:pointer;background:none;border:0;padding:0;color:inherit;font:inherit;text-align:left}
+.lb .lt{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-bottom:4px}
+.lb .lt span:first-child{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb .lt span:last-child{color:var(--muted);font-family:var(--fn);white-space:nowrap}
+.lb .tr{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.lb .tr i{display:block;height:100%;border-radius:999px}
+.bk{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line-2);margin-bottom:8px;cursor:pointer;width:100%;color:inherit;font:550 12px/1.4 var(--f)}
+.bk:hover{border-color:var(--line)}
+.pill{padding:2px 8px;border-radius:999px;font-weight:650;font-size:11px;white-space:nowrap}
+.pill.green{background:var(--green-bg);color:var(--green)}.pill.amber{background:var(--amber-bg);color:var(--amber)}.pill.red{background:var(--red-bg);color:var(--red)}.pill.sky{background:var(--steel-2);color:var(--steel)}.pill.purple{background:var(--purple-bg);color:var(--purple)}.pill.slate{background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
+.lg{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:6px;background:var(--panel-2);font-size:12px;margin-bottom:8px}
+.lg span{color:var(--muted)}.lg b{font-family:var(--fn);font-weight:600;color:var(--strong);white-space:nowrap}
+.lg.tot{background:var(--brand-2);border:1px solid var(--brand-line);padding:10px}.lg.tot span,.lg.tot b{color:var(--brand-text);font-weight:700}
+.mxw{border-radius:var(--r-lg);background:var(--panel);border:1px solid var(--line);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow)}
+.mxh{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.mxh h3{margin:0;font-size:14px;color:var(--strong)}.mxh p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+.mxh .lnk{font-size:12px;color:var(--brand-text);font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px;background:none;border:0;cursor:pointer}
+.mxs{overflow-x:auto}
+table.mx{width:100%;border-collapse:collapse;font-size:12px;min-width:1040px}
+.mx th{text-align:left;padding:10px 12px;background:var(--thead);color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap}
+.mx td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.mx tbody tr{cursor:pointer}.mx tbody tr:hover td{background:var(--panel-2)}
+.mx .pid{font-family:var(--fn);font-weight:700;color:var(--brand-text);white-space:nowrap}
+.mx .pn{font-weight:650;color:var(--strong)}.mx .sub{font-size:11px;color:var(--muted);font-family:var(--fn)}
+.mx .proj{max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mx .mono{font-family:var(--fn)}
+.loc{padding:2px 8px;border-radius:5px;background:var(--panel-2);border:1px solid var(--line);font-weight:550;white-space:nowrap}
+.cur{color:var(--steel);font-weight:600}.arrow{color:var(--ink-dim);margin:0 4px}.nxt{color:var(--muted)}
+.stuck{margin-left:6px;padding:1px 6px;border-radius:4px;background:var(--red-bg);color:var(--red);font-size:10px;font-weight:800;letter-spacing:.03em}
+.st{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:700;border:1px solid;white-space:nowrap;letter-spacing:.02em}
+.st.sky{background:var(--steel-2);color:var(--steel);border-color:color-mix(in srgb,var(--steel) 35%,transparent)}
+.st.amber{background:var(--amber-bg);color:var(--amber);border-color:color-mix(in srgb,var(--amber) 35%,transparent)}
+.st.red{background:var(--red-bg);color:var(--red);border-color:color-mix(in srgb,var(--red) 35%,transparent)}
+.st.green{background:var(--green-bg);color:var(--green);border-color:color-mix(in srgb,var(--green) 35%,transparent)}
+.st.purple{background:var(--purple-bg);color:var(--purple);border-color:color-mix(in srgb,var(--purple) 35%,transparent)}
+.st.slate{background:var(--panel-2);color:var(--muted);border-color:var(--line)}
+.mxf{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.feed2 li{font-size:12.5px}
+/* shop-floor action dialogs */
+.modal.wide{width:min(860px,calc(100% - 24px))}
+.pick{border:1px solid var(--line);border-radius:var(--r);max-height:52vh;overflow:auto;margin-top:12px}
+.pick table{width:100%;border-collapse:collapse;font-size:12.5px}
+.pick th{position:sticky;top:0;background:var(--thead);text-align:left;padding:8px 10px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);white-space:nowrap}
+.pick td{padding:8px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.pick td small{display:block;color:var(--muted);font-size:11px}
+.pick input[type=checkbox]{width:17px;height:17px}
+.pick .cell{min-width:0}
+.mhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.mhead .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none}
+.mhead .ic svg{width:18px;height:18px}
+.mhead h2{margin:0}
 
 </style>
 </head>
@@ -466,7 +586,7 @@ const DEFAULT_SETTINGS = {
   due_soon_days: 2, order_warn_days: 7, alert_lookback_days: 120, default_credit_days: 30,
   weight_factor: 0.00000786, fy_start_month: 4, company_address: '', company_gst: '',
   emailjs: { service_id: '', template_id: '', public_key: '' },
-  whatsapp_auto: true, digest_auto: true, digest_last: '', app_url: '', default_role: 'member'
+  whatsapp_auto: true, digest_auto: true, digest_last: '', app_url: '', default_role: 'none', stuck_days: 7
 };
 
 /* Starter options — created once so a fresh workspace is usable. All editable in Settings → Lists. */
@@ -504,9 +624,24 @@ const poById = id => (S.data.purchase_orders || []).find(o => o.id === id);
 const materialByGrade = g => (S.data.materials || []).find(m => norm(m.grade) === norm(g));
 const procMaster = p => masters('process').find(m => norm(m.value) === norm(p));
 const orderLabel = o => o ? `${o.order_no || ''} · ${o.project || ''}` : '';
-const opsOfPart = p => (S.data.operations || []).filter(o => o.part_id === p.id || (!o.part_id && p.drawing_no && norm(o.drawing_no) === norm(p.drawing_no))).sort((a, b) => (num(a.seq) ?? 99) - (num(b.seq) ?? 99) || (a.sent_date || a.start_date || a.created_at || '').localeCompare(b.sent_date || b.start_date || b.created_at || ''));
-const partsOfOrder = o => (S.data.parts || []).filter(p => p.order_id === o.id);
-const opsOfOrder = o => (S.data.operations || []).filter(x => x.order_id === o.id);
+/* Lookup index, rebuilt lazily after any data change — keeps big imports fast (no parts × operations scans). */
+let _IDX = null;
+const dirtyIdx = () => { _IDX = null; };
+function idx() {
+  if (_IDX) return _IDX;
+  const byPart = new Map(), byDrg = new Map(), opsByOrder = new Map(), partsByOrder = new Map();
+  const push = (m, k, v) => { const a = m.get(k); a ? a.push(v) : m.set(k, [v]); };
+  for (const o of S.data.operations || []) {
+    if (o.part_id) push(byPart, o.part_id, o); else if (o.drawing_no) push(byDrg, norm(o.drawing_no), o);
+    if (o.order_id) push(opsByOrder, o.order_id, o);
+  }
+  for (const p of S.data.parts || []) if (p.order_id) push(partsByOrder, p.order_id, p);
+  return (_IDX = { byPart, byDrg, opsByOrder, partsByOrder });
+}
+const opSort = (a, b) => (num(a.seq) ?? 99) - (num(b.seq) ?? 99) || (a.sent_date || a.start_date || a.created_at || '').localeCompare(b.sent_date || b.start_date || b.created_at || '');
+const opsOfPart = p => { const X = idx(); return [...(X.byPart.get(p.id) || []), ...(p.drawing_no ? X.byDrg.get(norm(p.drawing_no)) || [] : [])].sort(opSort); };
+const partsOfOrder = o => idx().partsByOrder.get(o.id) || [];
+const opsOfOrder = o => idx().opsByOrder.get(o.id) || [];
 const ownerName = op => op.owner_type === 'Supplier' ? (op.supplier || 'Supplier?') : (teamById(op.owner_member)?.name || 'Unassigned');
 const ownerKey = op => op.owner_type === 'Supplier' && op.supplier ? 's:' + op.supplier : op.owner_member ? 't:' + op.owner_member : '';
 function nextNo(table, field, prefix) {
@@ -657,7 +792,7 @@ const SCHEMA = {
     F('tags', 'Works as', 'tags', { opts: () => TEAM_TAGS, full: 1, hint: 'Controls which lists they appear in. Managers get the daily digest.' }),
     F('notify_email', 'Send email alerts', 'bool', { def: () => true }),
     F('notify_whatsapp', 'Send WhatsApp alerts', 'bool', { def: () => true }),
-    F('wa_apikey', 'CallMeBot key (optional)', 'text', { full: 1, hint: 'Makes WhatsApp alerts fully automatic for this person. See Settings → Notifications.' }),
+    F('wa_apikey', 'CallMeBot key (optional)', 'text', { full: 1, hint: 'Makes WhatsApp alerts fully automatic for this person. Only admins and editors can see it. See Settings → Notifications.' }),
     F('active', 'Active', 'bool', { def: () => true }),
   ],
   tasks: [
@@ -775,6 +910,8 @@ const opPayable = op => op.owner_type !== 'Supplier' || op.status !== 'Done' ? 0
 const grnValue = g => (g.lines || []).reduce((s, l) => s + (num(l.amount) || 0), 0);
 const grnPayable = g => Math.max(0, (num(g.bill_amount) ?? grnValue(g)) - (num(g.paid_amount) || 0));
 const recentCut = () => addDays(today(), -(num(S.settings.alert_lookback_days) || 120));
+/** An open step that still matters: its order is open, or (no order) it is recent. Closed / imported history is ignored. */
+const liveOp = op => { if (op.status === 'Done') return false; const o = op.order_id ? orderById(op.order_id) : null; if (o) return !ORDER_DONE.has(o.status); if (op.order_id) return false; return (op.sent_date || op.start_date || op.target_date || '') >= recentCut(); };
 
 /* ================= alerts engine ================= */
 function computeAlerts() {
@@ -786,11 +923,11 @@ function computeAlerts() {
     else if (l === 'amber' && o.delivery_date && daysBetween(t, o.delivery_date) <= (num(S.settings.order_warn_days) ?? 7)) out.push({ lvl: 'amber', kind: 'orders', rec: o, title: `Order ${o.order_no} due for delivery ${fmtD(o.delivery_date)}`, text: `${o.project} · ${orderProgress(o).pct}% complete` });
   }
   for (const op of S.data.operations || []) {
-    if (op.status === 'Done' || ((op.sent_date || op.start_date || op.target_date || '') < from && !op.order_id)) continue;
+    if (num(op.rejection_qty) > 0 && (op.done_date || '') >= addDays(t, -30)) out.push({ lvl: 'amber', kind: 'operations', rec: op, title: `${fmtN(op.rejection_qty)} rejected on ${op.drawing_no}`, text: `${ownerName(op)} · debit ${money(num(op.debit_amount))}` });
+    if (!liveOp(op)) continue;
     const l = opLight(op), who = `${op.part_name || ''} · ${op.process || ''} · ${ownerName(op)}`;
     if (l === 'red') out.push({ lvl: 'red', kind: 'operations', rec: op, title: `${op.drawing_no} ${op.process || ''} is ${daysBetween(op.target_date, t)} day(s) late`, text: `${who} · target ${fmtD(op.target_date)}` });
     else if (l === 'amber') out.push({ lvl: 'amber', kind: 'operations', rec: op, title: op.status === 'On hold' ? `${op.drawing_no} ${op.process || ''} is on hold` : `${op.drawing_no} ${op.process || ''} due ${op.target_date === t ? 'today' : fmtD(op.target_date)}`, text: who + (op.hold_reason ? ' · ' + op.hold_reason : '') });
-    if (num(op.rejection_qty) > 0 && (op.done_date || '') >= addDays(t, -30)) out.push({ lvl: 'amber', kind: 'operations', rec: op, title: `${fmtN(op.rejection_qty)} rejected on ${op.drawing_no}`, text: `${ownerName(op)} · debit ${money(num(op.debit_amount))}` });
   }
   for (const po of S.data.purchase_orders || []) {
     if (!['Sent', 'Partly received'].includes(po.status)) continue;
@@ -853,9 +990,15 @@ const Cloud = {
     }
     return out;
   },
-  upsertCache(t, row) { const a = S.data[t]; const i = a.findIndex(x => x.id === row.id); if (i >= 0) a[i] = row; else a.push(row); },
+  upsertCache(t, row) { const a = S.data[t]; const i = a.findIndex(x => x.id === row.id); if (t === 'team' && S.hasSecrets && i >= 0 && !row.wa_apikey) row.wa_apikey = a[i].wa_apikey; if (i >= 0) a[i] = row; else a.push(row); dirtyIdx(); },
   async insert(t, rows, onProgress) {
     const out = [];
+    if (t === 'notifications') {
+      const now = new Date().toISOString(); rows = rows.map(r => ({ id: uid(), created_at: now, ...r }));
+      const { error } = await sb.from(t).insert(rows); if (error) throw error;
+      rows.filter(r => norm(r.recipient_email) === norm(S.profile?.email)).forEach(r => this.upsertCache(t, r));
+      return rows;
+    }
     for (let i = 0; i < rows.length; i += 400) {
       const { data, error } = await sb.from(t).insert(rows.slice(i, i + 400)).select();
       if (error) throw error; out.push(...data); data.forEach(r => this.upsertCache(t, r));
@@ -869,6 +1012,11 @@ const Cloud = {
   },
   async patchMany(t, rows) {
     const now = new Date().toISOString();
+    if (!canEdit()) { // members only have UPDATE rights on their own rows — upsert would need INSERT and fail silently
+      let err = null;
+      for (const { id, ...p } of rows) { try { await this.update(t, id, p); } catch (e) { err = err || e; } }
+      if (err) throw err; return;
+    }
     for (let i = 0; i < rows.length; i += 400) {
       const { data, error } = await sb.from(t).upsert(rows.slice(i, i + 400).map(r => ({ ...r, updated_at: now }))).select();
       if (error) throw error; data.forEach(r => this.upsertCache(t, r));
@@ -886,7 +1034,8 @@ const Cloud = {
   },
   subscribe() {
     sb.channel('cpt-all').on('postgres_changes', { event: '*', schema: 'public' }, p => {
-      const t = p.table; if (!S.data[t]) return;
+      const t = p.table; if (!S.data[t]) return; dirtyIdx();
+      if (t === 'team_secrets') { const a = S.data.team_secrets, id = (p.new && p.new.team_id) || (p.old && p.old.team_id); const i = a.findIndex(x => x.team_id === id); if (p.eventType === 'DELETE') { if (i >= 0) a.splice(i, 1); const tm = teamById(id); if (tm) tm.wa_apikey = null; } else { i >= 0 ? a[i] = p.new : a.push(p.new); } mergeSecrets(); return; }
       if (p.eventType === 'DELETE') S.data[t] = S.data[t].filter(x => x.id !== p.old.id && (t !== 'app_settings' || x.key !== p.old.key));
       else if (t === 'app_settings') { const a = S.data.app_settings; const i = a.findIndex(x => x.key === p.new.key); i >= 0 ? a[i] = p.new : a.push(p.new); applySettings(); }
       else if (t === 'notifications' && norm(p.new.recipient_email) !== norm(S.profile?.email)) return;
@@ -904,14 +1053,27 @@ const DB = {
     if (table === 'notifications' || table === 'activity') return role !== 'none';
     return false;
   },
+  get secretKeys() { return S.mode === 'cloud' && S.hasSecrets; },
   async insert(t, rows, onProgress) {
     rows = (Array.isArray(rows) ? rows : [rows]).map(r => coerce(t, r));
     if (S.mode === 'cloud' && S.session && ['orders', 'parts', 'operations', 'purchase_orders', 'grns', 'tasks'].includes(t)) rows.forEach(r => r.created_by ??= S.profile?.email);
-    return this.a.insert(t, rows, onProgress);
+    try {
+      if (t === 'team' && this.secretKeys) { // CallMeBot keys live in an editors-only table, not on the team row everyone can read
+        rows.forEach(r => { r.id ??= uid(); }); const keys = rows.filter(r => r.wa_apikey).map(r => [r.id, r.wa_apikey]); rows.forEach(r => { r.wa_apikey = null; });
+        const out = await this.a.insert(t, rows, onProgress); await saveKeys(keys); return out;
+      }
+      return await this.a.insert(t, rows, onProgress);
+    } finally { dirtyIdx(); }
   },
-  async update(t, id, patch) { return this.a.update(t, id, coerce(t, patch)); },
-  async remove(t, ids) { return this.a.remove(t, Array.isArray(ids) ? ids : [ids]); },
-  async patchMany(t, rows) { return this.a.patchMany(t, rows.map(r => coerce(t, r))); },
+  async update(t, id, patch) {
+    patch = coerce(t, patch);
+    try {
+      if (t === 'team' && this.secretKeys && 'wa_apikey' in patch) { const key = patch.wa_apikey; patch.wa_apikey = null; await this.a.update(t, id, patch); await saveKeys([[id, key]]); return teamById(id); }
+      return await this.a.update(t, id, patch);
+    } finally { dirtyIdx(); }
+  },
+  async remove(t, ids) { try { return await this.a.remove(t, Array.isArray(ids) ? ids : [ids]); } finally { dirtyIdx(); } },
+  async patchMany(t, rows) { try { return await this.a.patchMany(t, rows.map(r => coerce(t, r))); } finally { dirtyIdx(); } },
   async setSetting(k, v) { return this.a.setSetting(k, v); },
 };
 
@@ -926,8 +1088,25 @@ function applySettings() {
   link.href = s.logo || "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>";
 }
 
+function mergeSecrets() {
+  if (!S.hasSecrets) return;
+  const m = new Map((S.data.team_secrets || []).map(r => [r.team_id, r.wa_apikey]));
+  for (const t of S.data.team || []) if (m.has(t.id)) t.wa_apikey = m.get(t.id);
+}
+async function saveKeys(pairs) {
+  for (const [id, key] of pairs) {
+    const { error } = key ? await sb.from('team_secrets').upsert({ team_id: id, wa_apikey: key, updated_at: new Date().toISOString() }) : await sb.from('team_secrets').delete().eq('team_id', id);
+    if (error) throw error;
+    const a = S.data.team_secrets, i = a.findIndex(x => x.team_id === id);
+    if (key) i >= 0 ? a[i].wa_apikey = key : a.push({ team_id: id, wa_apikey: key }); else if (i >= 0) a.splice(i, 1);
+    const tm = teamById(id); if (tm) tm.wa_apikey = key || null;
+  }
+}
 async function loadAll() {
   for (const t of TABLES) S.data[t] = await DB.a.load(t);
+  S.data.team_secrets = []; S.hasSecrets = false;
+  if (S.mode === 'cloud') { try { S.data.team_secrets = await Cloud.load('team_secrets'); S.hasSecrets = true; mergeSecrets(); } catch (e) { console.warn('team_secrets not set up yet — run the latest setup script', e.message); } }
+  dirtyIdx();
   applySettings();
   if (S.mode === 'local') await migrateV1();
   if (DB.canWrite('masters') && !S.data.masters.length && !(S.data.app_settings || []).some(r => r.key === 'seeded')) {
@@ -999,7 +1178,7 @@ async function notify(member, { title, body = '', route = '' }, opts = {}) {
     if (member.wa_apikey && S.settings.whatsapp_auto !== false) { try { await sendCallMeBot(member.phone, member.wa_apikey, full); sent.push('WhatsApp'); } catch (e) { manual.push({ label: 'WhatsApp', href: waLink(member.phone, full), wa: 1 }); } }
     else manual.push({ label: 'WhatsApp', href: waLink(member.phone, full), wa: 1 });
   }
-  if (!opts.silent) toast(`${member.name} notified in the app${sent.length ? ' and by ' + sent.join(' & ') : ''}.`, manual.map(m => ({ label: 'Send ' + m.label, href: m.href, wa: m.wa })), 9000);
+  if (!opts.silent && !S._quiet) toast(`${member.name} notified in the app${sent.length ? ' and by ' + sent.join(' & ') : ''}.`, manual.map(m => ({ label: 'Send ' + m.label, href: m.href, wa: m.wa })), 9000);
   return { sent, manual };
 }
 
@@ -1050,6 +1229,7 @@ async function scanReminders() {
   let n = 0;
   for (const op of S.data.operations || []) {
     if (op.status === 'Done' || !op.target_date) continue;
+    if (op.order_id && ORDER_DONE.has(orderById(op.order_id)?.status)) continue; // closed / imported history — never remind
     if (!canEdit() && op.owner_member !== me().team?.id) continue;
     const lvl = op.target_date < t ? 'late' : daysBetween(t, op.target_date) <= soon ? 'soon' : '';
     if (!lvl || op.alert_state === lvl) continue;
@@ -1117,9 +1297,17 @@ const ICON = {
   customers: I('<circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.9-3.8 3.9-6 7.5-6s6.6 2.2 7.5 6"/>'),
   print: I('<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="1.5"/><path d="M7 14h10v7H7z"/>'),
   moon: I('<path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>'),
+  factory: I('<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1M12 18h1M7 18h1"/>'),
+  building: I('<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4"/>'),
+  userCheck: I('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/>'),
+  truck: I('<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>'),
+  pkg: I('<path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14M7.5 4.27l9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><path d="M12 22V12"/>'),
+  shield: I('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>'),
+  activity: I('<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>'),
+  arrowR: I('<path d="M5 12h14M12 5l7 7-7 7"/>'),
 };
 
-ICON.rmplan = ICON.rm; ICON.purchase = ICON.po; ICON.accounts = ICON.money;
+ICON.rmplan = ICON.rm; ICON.purchase = ICON.po; ICON.accounts = ICON.money; ICON.dashboard = ICON.activity;
 
 /* ================= toast / overlays ================= */
 function toast(msg, actions = [], ms = 4200, err = false) {
@@ -1132,7 +1320,7 @@ function toast(msg, actions = [], ms = 4200, err = false) {
   });
   box.appendChild(el); setTimeout(() => el.remove(), ms);
 }
-const fail = (e, what = 'That didn’t work') => { console.error(e); toast(`${what}: ${e.message || e}`, [], 7000, true); };
+const fail = (e, what = 'That didn’t work') => { console.error(e); if (e?.code === '23505') return toast(`${what}: that number is already used — someone may have saved one at the same moment. Change the number and save again.`, [], 9000, true); toast(`${what}: ${e.message || e}`, [], 7000, true); };
 
 function closeOverlay() { $$('.scrim,.drawer,.modal').forEach(x => x.remove()); document.body.style.overflow = ''; }
 function openDrawer(title, contentHtml, footerHtml) {
@@ -1287,6 +1475,7 @@ function openRecord(table, rec = null, opts = {}) {
     const raw = readForm(form, table); let bad = false;
     for (const f of SCHEMA[table]) { const box = form.querySelector(`[data-field="${f.key}"]`); const miss = f.req && (raw[f.key] == null || raw[f.key] === '' || (Array.isArray(raw[f.key]) && !raw[f.key].length)); box?.classList.toggle('bad', !!miss); if (miss) bad = true; }
     if (bad) { toast('Fill in the fields marked with *', [], 3000, true); form.querySelector('.bad input,.bad select')?.focus(); return; }
+    if (raw.location_url && !safeUrl(raw.location_url)) { form.querySelector('[data-field="location_url"]')?.classList.add('bad'); toast('The map link must start with https://', [], 3500, true); return; }
     const row = computeRow(table, raw);
     if (table === 'operations') { if (rec._part_id || base._part_id) { row.part_id = rec._part_id || base._part_id; row.order_id = rec._order_id ?? base._order_id ?? row.order_id; } else if (!rec.part_id) { const p = partByDrg(row.drawing_no); if (p) { row.part_id = p.id; row.order_id = p.order_id; } } if (isNew) row.assigned_by = me().name; if ((row.owner_member || row.supplier) && row.status === 'Planned') row.status = 'Assigned'; if (row.status === 'Done') row.progress = 100; if (rec.target_date !== row.target_date || rec.status !== row.status) row.alert_state = null; }
     if (table === 'parts' && row.order_id && !row.project) row.project = orderById(row.order_id)?.project || null;
@@ -1375,10 +1564,11 @@ function exportRows(name, rows, table) {
 
 /* ================= shell & router ================= */
 const NAV = [
-  ['dashboard', 'Dashboard'], ['alerts', 'Alerts'], ['mywork', 'My work'], ['tracker', 'Part tracker'], '-Workflow',
-  ['orders', '1 · Orders'], ['rmplan', '2 · RM plan'], ['purchase', '3 · Purchase & GRN'], ['process', '4 · Process plan'], ['accounts', '5 · Billing & payments'], '-Masters',
-  ['materials', 'RM master'], ['suppliers', 'Suppliers'], ['customers', 'Customers'], ['team', 'Team'], ['settings', 'Settings'],
+  ['dashboard', 'Dashboards'], ['alerts', 'Alerts'], ['mywork', 'My work'], ['tracker', 'Child part tracker'], '-Workflow',
+  ['orders', '1 · Orders & projects'], ['rmplan', '2 · RM plan & weight'], ['purchase', '3 · Purchase & GRN'], ['process', '4 · Process plan'], ['accounts', '5 · Billing & payments'], '-Masters',
+  ['materials', 'RM master'], ['suppliers', 'Suppliers'], ['customers', 'Customers'], ['team', 'Team'], ['settings', 'Admin & settings'],
 ];
+const ROLE_LABEL = { admin: 'Administrator', editor: 'Editor / planner', member: 'Shop-floor member', viewer: 'Viewer' };
 const MOBILE_NAV = ['dashboard', 'mywork', 'tracker', 'alerts', 'more'];
 const ROUTE_NAV = { order: 'orders' };
 
@@ -1389,37 +1579,50 @@ function parseHash() {
 }
 window.addEventListener('hashchange', () => { parseHash(); closeOverlay(); $('.npanel')?.remove(); render(); window.scrollTo(0, 0); });
 
-function brandHtml() {
-  const s = S.settings;
-  return `<div class="brand">${s.logo ? `<img src="${esc(s.logo)}" alt="">` : `<div class="mark">${esc(initials(s.company_name || s.app_title))}</div>`}<div><b>${esc(s.company_name || s.app_title)}</b><small>${esc(s.company_name ? s.app_title : S.mode === 'local' ? 'Trial on this device' : 'Shared workspace')}</small></div></div>`;
+function floorButtons() {
+  const ed = canEdit(), fl = ed || myRole() === 'member';
+  return (ed ? `<button class="act pri" data-fa="part">${ICON.plus}Add child part</button>` : '') +
+    (fl ? `<button class="act sky" data-fa="out">${ICON.truck}Send for process (outward)</button><button class="act em" data-fa="in">${ICON.pkg}Receive part (inward)</button><button class="act pu" data-fa="qc">${ICON.shield}Inspect part (quality gate)</button>` : '') +
+    `<button class="act plain" data-fa="exp">${ICON.down}Export Excel</button>`;
 }
 function shellHtml() {
   const al = computeAlerts().filter(a => a.lvl !== 'info').length;
-  const myId = me().team?.id; const myOpen = myId ? (S.data.tasks || []).filter(t => t.status !== 'Done' && t.assigned_to === myId).length + (S.data.operations || []).filter(o => o.status !== 'Done' && (o.owner_member === myId || o.follow_up === myId)).length : 0;
+  const myId = me().team?.id; const myOpen = myId ? (S.data.tasks || []).filter(t => t.status !== 'Done' && t.assigned_to === myId).length + (S.data.operations || []).filter(o => liveOp(o) && (o.owner_member === myId || o.follow_up === myId)).length : 0;
   const unread = myNotifications().filter(n => !n.is_read).length;
-  const badge = k => k === 'alerts' && al ? `<span class="badge">${al > 99 ? '99+' : al}</span>` : k === 'mywork' && myOpen ? `<span class="badge" style="background:var(--steel)">${myOpen}</span>` : '';
-  const m = me();
+  const badge = k => k === 'alerts' && al ? `<span class="badge">${al > 99 ? '99+' : al}</span>` : k === 'mywork' && myOpen ? `<span class="badge" style="background:#0ea5e9">${myOpen}</span>` : '';
+  const m = me(), s = S.settings, role = myRole();
+  const supN = (S.data.suppliers || []).filter(x => x.active !== false).length;
+  const label = n => n[0] === 'suppliers' && supN ? `Suppliers (${supN})` : n[1];
   return `<div class="shell">
-  <aside class="side">${brandHtml()}
-    <nav class="nav">${NAV.map(n => typeof n === 'string' ? `<div class="sep">${esc(n.slice(1))}</div>` : `<a href="#/${n[0]}" class="${(ROUTE_NAV[S.route] || S.route) === n[0] ? 'on' : ''}">${ICON[n[0]]}<span>${n[1]}</span>${badge(n[0])}</a>`).join('')}</nav>
-    <div class="who"><div class="avatar">${esc(initials(m.name))}</div><div style="min-width:0"><div style="color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.name)}</div><small style="color:var(--ink-dim)">${esc({ admin: 'Admin', editor: 'Editor', member: 'Member', viewer: 'Viewer' }[myRole()] || 'No access yet')}</small></div>${S.mode === 'cloud' ? '<button data-signout>Sign out</button>' : ''}</div>
-  </aside>
-  <div class="main">
-    <header class="top"><div class="grow"><h1 id="ptitle"></h1><div class="sub" id="psub"></div></div>
-      <div class="gsearch" id="gsearch">${ICON.search}<input placeholder="Search order, drawing no., part, supplier…" aria-label="Search everything"><div class="gresults hidden"></div></div>
-      <button class="iconbtn only-mob" data-gs aria-label="Search">${ICON.search}</button>
-      <button class="iconbtn" data-bell aria-label="Notifications">${ICON.bell}${unread ? `<span class="dot">${unread > 9 ? '9+' : unread}</span>` : ''}</button>
-      <button class="iconbtn only-desk" data-theme aria-label="Switch light or dark">${ICON.moon}</button>
-    </header>
-    <main class="view" id="view"></main>
+  <header class="hdr" id="hdr">
+    <div class="hrow">
+      <div class="logo">${s.logo ? `<img src="${esc(s.logo)}" alt="">` : ICON.factory}</div>
+      <div class="hbrand"><h1><span style="overflow:hidden;text-overflow:ellipsis">${esc(s.app_title || 'Child Parts Tracker')}</span><span class="tagpill">Mini-MES</span></h1><p>${ICON.building}<span>${esc(s.company_name || (S.mode === 'local' ? 'Trial on this device' : 'Shared workspace'))}</span>${s.company_gst ? `<span style="color:#475569">•</span><span class="gst">GST: ${esc(s.company_gst)}</span>` : ''}</p></div>
+      <div class="gsearch" id="gsearch">${ICON.search}<input placeholder="Search order, drawing no., part, supplier, grade…" aria-label="Search everything"><div class="gresults hidden"></div></div>
+      <div class="hright">
+        <span class="hchip role">${ICON.userCheck}Role: ${esc(ROLE_LABEL[role] || 'No access')}</span>
+        <button class="iconbtn only-mob" data-gs aria-label="Search">${ICON.search}</button>
+        <button class="iconbtn" data-bell aria-label="Notifications">${ICON.bell}${unread ? `<span class="dot">${unread > 9 ? '9+' : unread}</span>` : ''}</button>
+        <button class="iconbtn only-desk" data-theme aria-label="Switch light or dark">${ICON.moon}</button>
+      </div>
+    </div>
+    <div class="hrow2"><div class="acts"><span class="lbl only-desk">Shop-floor actions:</span>${floorButtons()}</div><span class="live"><i></i>Session active: ${esc(m.name)}${m.team?.tags?.length ? ` (${esc(m.team.tags[0])})` : ''}</span></div>
+  </header>
+  <div class="frame">
+    <aside class="side">
+      <nav class="nav">${NAV.map(n => typeof n === 'string' ? `<div class="sep">${esc(n.slice(1))}</div>` : `<a href="#/${n[0]}" class="${(ROUTE_NAV[S.route] || S.route) === n[0] ? 'on' : ''}">${ICON[n[0]]}<span>${esc(label(n))}</span>${badge(n[0])}</a>`).join('')}</nav>
+      <div class="who"><div class="avatar">${esc(initials(m.name))}</div><div style="min-width:0"><div style="color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.name)}</div><small style="color:var(--ink-dim)">${esc({ admin: 'Admin', editor: 'Editor', member: 'Member', viewer: 'Viewer' }[role] || 'No access yet')}</small></div>${S.mode === 'cloud' ? '<button data-signout>Sign out</button>' : ''}</div>
+    </aside>
+    <div class="main"><div class="phead"><h2 id="ptitle"></h2><span class="sub" id="psub"></span></div><main class="view" id="view"></main></div>
   </div>
-  <nav class="mbar">${MOBILE_NAV.map(k => k === 'more' ? `<a href="#/more" class="${!MOBILE_NAV.includes(ROUTE_NAV[S.route] || S.route) ? 'on' : ''}">${ICON.more}<span>More</span></a>` : `<a href="#/${k}" class="${S.route === k ? 'on' : ''}">${ICON[k]}<span>${NAV.find(n => n[0] === k)[1]}</span>${badge(k)}</a>`).join('')}</nav>
+  <nav class="mbar">${MOBILE_NAV.map(k => k === 'more' ? `<a href="#/more" class="${!MOBILE_NAV.includes(ROUTE_NAV[S.route] || S.route) ? 'on' : ''}">${ICON.more}<span>More</span></a>` : `<a href="#/${k}" class="${S.route === k ? 'on' : ''}">${ICON[k]}<span>${{ dashboard: 'Dashboard', tracker: 'Tracker' }[k] || NAV.find(n => n[0] === k)[1]}</span>${badge(k)}</a>`).join('')}</nav>
 </div>`;
 }
 function wireShell() {
   $('[data-signout]')?.addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+  $$('[data-fa]').forEach(b => b.onclick = () => FLOOR[b.dataset.fa]());
   $('[data-theme]')?.addEventListener('click', () => {
-    const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const cur = document.documentElement.dataset.theme || 'dark';
     const nx = cur === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = nx; S.ui.theme = nx; saveUI(); render();
   });
   $('[data-bell]').addEventListener('click', toggleNotifications);
@@ -1439,8 +1642,8 @@ function wireShell() {
     gr.classList.remove('hidden');
     $$('[data-i]', gr).forEach(a => a.onclick = e => { e.preventDefault(); const x = res[+a.dataset.i]; gr.classList.add('hidden'); gi.value = ''; $('#gsearch').classList.remove('open'); x.t === 'orders' ? go('order?id=' + x.r.id) : x.t === 'parts' ? openRoute(x.r) : x.t === 'purchase_orders' ? openPO(x.r) : openRecord(x.t, x.r); });
   }, 150));
-  document.addEventListener('click', e => { if (!e.target.closest('#gsearch')) gr?.classList.add('hidden'); }, { once: true });
 }
+document.addEventListener('click', e => { if (!e.target.closest('#gsearch')) $('#gsearch .gresults')?.classList.add('hidden'); });
 
 function myNotifications() {
   const all = S.data.notifications || [];
@@ -1462,15 +1665,17 @@ function toggleNotifications() {
 let charts = [];
 function render() {
   if (!S.mode) return;
-  charts.forEach(c => c.destroy()); charts = [];
+  charts.forEach(c => c.destroy()); charts = []; dirtyIdx();
   const scroll = window.scrollY;
-  $('#app').innerHTML = shellHtml(); wireShell();
+  $('#app').innerHTML = shellHtml(); wireShell(); setHeaderH();
   const v = VIEWS[S.route] || VIEWS.dashboard;
   const out = v();
   $('#ptitle').textContent = out.title; $('#psub').textContent = out.sub || '';
   $('#view').innerHTML = out.html; out.after?.();
   if (S._keepScroll) window.scrollTo(0, scroll); S._keepScroll = false;
 }
+function setHeaderH() { const h = $('#hdr'); if (h) document.documentElement.style.setProperty('--hh', h.offsetHeight + 'px'); }
+window.addEventListener('resize', debounce(setHeaderH, 150));
 const liveRefresh = debounce(() => { if ($('.drawer') || $('.modal')) return; S._keepScroll = true; render(); }, 400);
 
 /* ================= shared view helpers ================= */
@@ -1486,6 +1691,7 @@ function wireFilters() {
   $$('[data-seg]').forEach(s => s.querySelectorAll('button').forEach(b => b.onclick = () => { S.ui[s.dataset.seg] = b.dataset.v; saveUI(); render(); }));
   $$('[data-self]').forEach(s => s.onchange = () => { S.ui[s.dataset.self] = s.value; saveUI(); render(); });
 }
+const safeUrl = u => /^https?:\/\/[^\s"'<>]+$/i.test(String(u || '').trim()) ? String(u).trim() : '';
 const matchQ = (r, q, keys) => !q || keys.some(k => norm(r[k]).includes(norm(q)));
 const addBtn = (label, attr) => canEdit() ? `<button class="btn pri" ${attr}>${ICON.plus}${esc(label)}</button>` : '';
 const expBtn = attr => `<button class="btn" ${attr} title="Download as Excel">${ICON.down}<span class="only-desk">Excel</span></button>`;
@@ -1505,7 +1711,7 @@ const inR = (d, [a, b]) => d && d >= a && d <= b;
 function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function mkChart(id, cfg) {
   if (!window.Chart) { const el = document.getElementById(id); if (el) el.parentElement.innerHTML = '<div class="empty">Charts load when you’re online.</div>'; return; }
-  Chart.defaults.font.family = cssVar('--f') || 'system-ui'; Chart.defaults.color = cssVar('--muted'); Chart.defaults.borderColor = cssVar('--line-2');
+  Chart.defaults.font.family = cssVar('--f') || 'system-ui'; Chart.defaults.color = cssVar('--muted'); Chart.defaults.borderColor = cssVar('--line-2'); Chart.defaults.datasets.bar.maxBarThickness = 42;
   const el = document.getElementById(id); if (!el) return;
   charts.push(new Chart(el, { ...cfg, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: cfg.legend || false, position: 'bottom', labels: { boxWidth: 10 } } }, ...cfg.options } }));
 }
@@ -1541,91 +1747,278 @@ function flowStrip(active) {
   return `<nav class="flow" aria-label="Workflow">${st.map(([r, n, l, t, c]) => `<a href="#/${r}" class="${r === active ? 'on' : ''}"><b>${n}</b><span>${l}<small class="${c}">${esc(t)}</small></span></a>`).join('')}</nav>`;
 }
 
-/* ================= dashboard ================= */
+/* ================= child-part state (control matrix) ================= */
+const stuckDays = () => num(S.settings.stuck_days) ?? 7;
+const isRework = op => /rework|not ?ok|reject/i.test(op.inspection || '');
+const badQty = op => num(op.rejection_qty) || (isRework(op) ? num(op.qty) || 0 : 0);
+const ST_CLS = { COMPLETED: 'green', SUPPLIER_PROCESSING: 'sky', IN_PROCESS: 'sky', QUEUED: 'slate', MATERIAL_PENDING: 'slate', ROUTE_PENDING: 'amber', ON_HOLD: 'amber', REWORK: 'red' };
+/** Where a child part is right now, who has it, for how long, and what it has cost. */
+function partState(p) {
+  const pr = partProgress(p), ops = pr.ops, rm = rmStage(p), c = computeRow('parts', p);
+  const active = ops.find(o => ['In progress', 'At supplier', 'On hold'].includes(o.status));
+  const cur = active || pr.next;
+  const nxt = cur ? ops.slice(ops.indexOf(cur) + 1).find(o => o.status !== 'Done') : null;
+  const doneOps = ops.filter(o => o.status === 'Done');
+  const lastDone = doneOps.slice().sort((a, b) => (b.done_date || '').localeCompare(a.done_date || ''))[0];
+  const complete = ops.length > 0 && doneOps.length === ops.length;
+  const started = ops.some(o => !['Planned', 'Assigned'].includes(o.status));
+  const rmOk = ['Received', 'From stock'].includes(rm);
+  const rw = !complete && ops.some(o => isRework(o) && (o.status !== 'Done' || o === lastDone));
+  let st, loc, since = null, who;
+  if (complete) { st = 'COMPLETED'; loc = 'Finished'; who = lastDone ? ownerName(lastDone) : '—'; }
+  else if (active && active.status === 'On hold') { st = 'ON_HOLD'; loc = 'On hold'; who = ownerName(active); since = active.start_date || active.sent_date || lastDone?.done_date; }
+  else if (active && (active.status === 'At supplier' || active.owner_type === 'Supplier')) { st = 'SUPPLIER_PROCESSING'; loc = 'Supplier'; who = ownerName(active); since = active.sent_date || active.start_date; }
+  else if (active) { st = 'IN_PROCESS'; loc = 'Machine shop'; who = ownerName(active); since = active.start_date || active.sent_date; }
+  else if (!started && !rmOk && ops.length) { st = 'MATERIAL_PENDING'; loc = 'Stores'; who = rm === 'Ordered' ? 'RM ordered' : 'Purchase'; since = p.order_date || (p.created_at || '').slice(0, 10); }
+  else if (!ops.length) { st = rmOk ? 'ROUTE_PENDING' : 'MATERIAL_PENDING'; loc = 'Stores'; who = rmOk ? 'Planner' : rm === 'Ordered' ? 'RM ordered' : 'Purchase'; since = rmOk ? p.rm_received_date || p.order_date : p.order_date || (p.created_at || '').slice(0, 10); }
+  else { st = 'QUEUED'; loc = cur.owner_type === 'Supplier' ? 'To send out' : 'Shop queue'; who = ownerName(cur); since = lastDone?.done_date || p.rm_received_date || p.order_date; }
+  if (rw) { st = 'REWORK'; loc = 'Rework'; }
+  const age = since ? Math.max(0, daysBetween(since, today()) ?? 0) : null;
+  const oc = ops.map(o => computeRow('operations', o));
+  const rmCost = c.actual_cost ?? c.planned_cost ?? 0, procAct = oc.reduce((s, o) => s + (o.status === 'Done' ? o.actual_cost ?? o.plan_cost ?? 0 : 0), 0);
+  const procPlan = oc.reduce((s, o) => s + (o.plan_cost || 0), 0);
+  return {
+    p, pr, c, st, loc, cur, nxt, who, age, stuck: !complete && age != null && age > stuckDays(), late: pr.light === 'red', complete,
+    n: ops.length, done: doneOps.length, rej: ops.reduce((s, o) => s + badQty(o), 0), qty: num(p.qty) || 0,
+    rmCost, procAct, procPlan, cost: rmCost + procAct, plan: (c.planned_cost || 0) + procPlan,
+  };
+}
+const livePartList = () => { const open = new Set((S.data.orders || []).filter(o => !ORDER_DONE.has(o.status)).map(o => o.id)); return (S.data.parts || []).filter(p => open.has(p.order_id)); };
+const stPill = st => `<span class="st ${ST_CLS[st] || 'slate'}">${esc(st)}</span>`;
+function matrixRows(list) {
+  return list.map(x => { const o = orderById(x.p.order_id); return `<tr data-mxp="${x.p.id}" tabindex="0">
+    <td class="pid">${esc(x.p.drawing_no || '—')}</td>
+    <td><div class="pn">${esc(x.p.part_name || '—')}</div><div class="sub">${esc(x.p.grade || 'no grade')}${x.c.planned_weight ? ` • ${fmtN(x.c.planned_weight, 3)} kg` : ''}${x.p.type ? ` • ${esc(x.p.type)}` : ''}</div></td>
+    <td><div class="proj" title="${esc(o ? orderLabel(o) : x.p.project || '')}">${esc(o?.project || x.p.project || '—')}</div><div class="sub">${esc(o?.order_no || '')}</div></td>
+    <td class="mono"><span style="color:var(--strong);font-weight:700">${fmtN(x.qty)}</span> / <span class="t-green">${x.done}/${x.n}</span> / <span class="${x.rej ? 't-red' : 't-muted'}">${fmtN(x.rej)}</span></td>
+    <td><span class="loc">${esc(x.loc)}</span></td>
+    <td style="min-width:190px">${x.cur ? `<span class="cur">${esc(x.cur.process || 'Process')}</span><span class="arrow">→</span><span class="nxt">${esc(x.nxt?.process || 'Final')}</span>` : x.complete ? '<span class="t-green">Completed</span>' : '<span class="nxt">Route not planned</span>'}</td>
+    <td>${esc(x.who || '—')}</td>
+    <td style="white-space:nowrap">${x.age == null ? '<span class="t-muted">—</span>' : `<span class="mono">${x.age}d</span>`}${x.stuck ? '<span class="stuck">STUCK</span>' : ''}${x.late && !x.stuck ? '<span class="stuck">LATE</span>' : ''}</td>
+    <td class="mono t-green" style="white-space:nowrap">${money(round(x.cost))}</td>
+    <td>${stPill(x.st)}</td></tr>`; }).join('');
+}
+function matrixTable(list, empty = 'No child parts here.') {
+  return `<div class="mxs"><table class="mx"><thead><tr><th>Drawing no.</th><th>Part name (grade • RM kg)</th><th>Order / project</th><th title="Qty required / process steps done / rejected">Qty / Steps / Rej</th><th>Current location</th><th>Current → next process</th><th>Responsible / supplier</th><th>Ageing</th><th>Cost to date</th><th>Status</th></tr></thead><tbody>${list.length ? matrixRows(list) : `<tr><td colspan="10" class="t-muted" style="padding:22px 12px;text-align:center">${esc(empty)}</td></tr>`}</tbody></table></div>`;
+}
+const wireMatrix = () => $$('[data-mxp]').forEach(tr => { const open = () => openRoute(partById(tr.dataset.mxp)); tr.onclick = open; tr.onkeydown = e => { if (e.key === 'Enter') open(); }; });
+const mxRank = x => (x.st === 'REWORK' ? 0 : x.stuck || x.late ? 1 : x.complete ? 4 : 2);
+const sortMatrix = list => list.sort((a, b) => mxRank(a) - mxRank(b) || (b.age ?? -1) - (a.age ?? -1));
+function exportMatrix() {
+  if (!window.XLSX) return toast('Excel library is still loading — try again in a moment.');
+  const rows = sortMatrix(livePartList().map(partState)).map(x => { const o = orderById(x.p.order_id); return { 'Drawing no.': x.p.drawing_no, 'Part name': x.p.part_name, Grade: x.p.grade, 'RM kg (plan)': x.c.planned_weight, Order: o?.order_no, Project: o?.project || x.p.project, Qty: x.qty, 'Steps done': x.done, 'Steps total': x.n, 'Rejected / rework qty': x.rej, Location: x.loc, 'Current process': x.cur?.process || '', 'Next process': x.nxt?.process || '', Responsible: x.who, 'Ageing (days)': x.age, Stuck: x.stuck ? 'Yes' : '', Late: x.late ? 'Yes' : '', 'RM cost': round(x.rmCost), 'Process cost to date': round(x.procAct), 'Cost to date': round(x.cost), 'Planned cost': round(x.plan), Status: x.st }; });
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Child part control');
+  XLSX.writeFile(wb, `Child part control ${today()}.xlsx`);
+}
+
+/* ================= dashboard (8 views) ================= */
 function hasDataIn(p) { const R = periodRange(p); return (S.data.orders || []).some(o => inR(o.order_date, R) || !ORDER_DONE.has(o.status)); }
 function historyBanner() {
   const all = S.data.orders || []; if (!all.length || all.some(o => !ORDER_DONE.has(o.status))) return '';
   const ds = all.map(o => o.order_date).filter(Boolean).sort();
-  return `<div class="panel" style="margin-bottom:16px;border-color:var(--steel)"><div class="body row"><span style="flex:1;min-width:200px"><b>${fmtN(all.length)} old orders saved as history</b>${ds.length ? ` (${fmtD(ds[0])} – ${fmtD(ds[ds.length - 1])})` : ''}.<span class="only-desk"> Reopen any that are still running, or add a new order to start the live workflow.</span></span><a class="btn sm" href="#/orders?f=done">Reopen</a>${canEdit() ? `<a class="btn sm pri" href="#/orders">${ICON.plus}New order</a>` : ''}</div></div>`;
+  return `<div class="panel" style="margin-bottom:16px;border-color:var(--brand-line)"><div class="body row"><span style="flex:1;min-width:200px"><b>${fmtN(all.length)} old orders saved as history</b>${ds.length ? ` (${fmtD(ds[0])} – ${fmtD(ds[ds.length - 1])})` : ''}.<span class="only-desk"> Reopen any that are still running, or add a new order to start the live workflow.</span></span><a class="btn sm" href="#/orders?f=done">Reopen</a>${canEdit() ? `<a class="btn sm pri" href="#/orders">${ICON.plus}New order</a>` : ''}</div></div>`;
 }
+const DTABS = [['overview', '1. Management overview'], ['prod', '2. Production tracker'], ['sup', '3. Supplier subcontracting'], ['qa', '4. Quality & FPY'], ['mat', '5. Material & sizing'], ['age', '6. Ageing & stuck parts'], ['cost', '7. Cost & variance'], ['deliv', '8. Delivery & receivables']];
+const OLD_DTAB = { rm: 'mat', proc: 'cost', cust: 'deliv' };
 function viewDashboard() {
-  const tab = S.ui.dtab || 'overview', period = S.ui.period || (hasDataIn('fy') ? 'fy' : 'all'), R = periodRange(period);
-  const tabs = seg('dtab', [['overview', 'Overview'], ['rm', 'Raw material'], ['proc', 'Process cost'], ['cust', 'Customers'], ['sup', 'Suppliers']], tab);
+  let tab = OLD_DTAB[S.ui.dtab] || S.ui.dtab || 'overview'; if (!DTABS.some(d => d[0] === tab)) tab = 'overview';
+  const period = S.ui.period || (hasDataIn('fy') ? 'fy' : 'all'), R = periodRange(period);
+  const live = ['overview', 'age'].includes(tab);
   const orders = (S.data.orders || []).filter(o => inR(o.order_date, R) || !ORDER_DONE.has(o.status));
   const oIds = new Set(orders.map(o => o.id));
   const parts = (S.data.parts || []).filter(p => oIds.has(p.order_id) || (!p.order_id && inR(p.order_date, R))).map(p => computeRow('parts', p));
   const ops = (S.data.operations || []).filter(o => oIds.has(o.order_id) || (!o.order_id && inR(o.done_date || o.sent_date || o.start_date, R)));
-  const kpi = (label, value, small, route, cls = '') => `<button class="kpi ${cls}" data-go="${route}"><span>${esc(label)}</span><b>${value}</b><small>${small || ''}</small></button>`;
+  const K = (label, value, sub, go, vcls = '', scls = '') => `<button class="mkc" data-go="${esc(go)}"><p class="l">${esc(label)}</p><p class="v ${vcls}">${value}</p><p class="s ${scls}">${sub || ''}</p></button>`;
   const empty = !(S.data.orders || []).length && !(S.data.parts || []).length;
-  const top = `<div class="toolbar">${tabs}<span class="spacer"></span>${seg('period', [['month', 'Month'], ['3m', '3 months'], ['fy', 'This FY'], ['lfy', 'Last FY'], ['all', 'All']], period)}${canEdit() ? `<button class="btn only-desk" data-digest title="Send the daily digest to managers now">${ICON.mail}<span class="only-desk">Digest</span></button>` : ''}</div>
+  const pname = { month: 'this month', '3m': 'last 3 months', fy: 'this FY', lfy: 'last FY', all: 'all time' }[period];
+  const top = `<div class="dtabs"><div class="tabs">${DTABS.map(([k, l]) => `<button data-dtab="${k}" class="${k === tab ? 'on' : ''}">${esc(l)}</button>`).join('')}</div>
+    <div class="ctx">${live ? `<span>Live · ${fmtD(today())}</span>` : seg('period', [['month', 'Month'], ['3m', '3 mo'], ['fy', 'This FY'], ['lfy', 'Last FY'], ['all', 'All']], period)}${canEdit() ? `<button class="btn sm only-desk" data-digest title="Send the daily digest to managers now">${ICON.mail}Digest</button>` : ''}<span class="only-desk">Workspace: <strong>${esc(S.settings.company_name || S.settings.app_title || 'Parts tracker')}</strong></span></div></div>
   ${historyBanner()}${empty ? `<div class="panel" style="margin-bottom:16px"><div class="empty"><b>Start with an order</b>Record a jig or fixture order, add its child parts, and the app takes you through purchase, processes, monitoring and billing.<br>${canEdit() ? `<a class="btn pri" href="#/orders">${ICON.plus}New order</a> ` : ''}${isAdmin() ? `<a class="btn" href="#/settings?tab=data">${ICON.up}Import Excel workbook</a>` : ''}</div></div>` : ''}`;
-  const after0 = () => { wireFilters(); $$('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go)); $('[data-digest]')?.addEventListener('click', () => sendDigest(true).catch(e => fail(e))); };
-  const C = () => ({ steel: cssVar('--steel'), amber: cssVar('--amber'), red: cssVar('--red'), green: cssVar('--green'), line: cssVar('--line'), muted: cssVar('--muted') });
+  const after0 = () => {
+    wireFilters(); wireMatrix();
+    $$('[data-dtab]').forEach(b => b.onclick = () => { S.ui.dtab = b.dataset.dtab; saveUI(); render(); });
+    $$('[data-go]').forEach(b => b.onclick = () => { const g = b.dataset.go; if (g.startsWith('tab:')) { S.ui.dtab = g.slice(4); saveUI(); render(); window.scrollTo(0, 0); } else go(g); });
+    $$('[data-proc]').forEach(b => b.onclick = () => { S.ui.pr_proc = b.dataset.proc; S.ui.pr_f = 'open'; S.ui.q_proc = ''; saveUI(); go('process'); });
+    $('[data-digest]')?.addEventListener('click', () => sendDigest(true).catch(e => fail(e)));
+    $$('[data-order]').forEach(el => el.onclick = () => go('order?id=' + el.dataset.order));
+    $$('[data-dueop]').forEach(el => el.onclick = () => openRecord('operations', S.data.operations.find(x => x.id === el.dataset.dueop)));
+    $$('[data-opid]').forEach(el => el.onclick = e => { if (e.target.closest('a,button')) return; openRecord('operations', S.data.operations.find(x => x.id === el.dataset.opid)); });
+  };
+  const C = () => ({ steel: cssVar('--steel'), amber: cssVar('--amber'), red: cssVar('--red'), green: cssVar('--green'), purple: cssVar('--purple'), brand: cssVar('--brand'), line: cssVar('--line'), muted: cssVar('--muted') });
   const short = s => String(s || '—').length > 22 ? String(s).slice(0, 21) + '…' : String(s || '—');
+  const lab = k => MONTHS[+k.slice(5) - 1] + ' ' + k.slice(2, 4);
+  const card = (title, tag, body, tagCls = 't-brand') => `<section class="card"><div class="ch"><h3>${esc(title)}</h3>${tag ? `<span class="${tagCls}">${tag}</span>` : ''}</div>${body}</section>`;
+  const chart = (id, h = 260) => `<div class="chartbox" style="height:${h}px"><canvas id="${id}"></canvas></div>`;
+  const BAR = ['#0ea5e9', '#f59e0b', '#f97316', '#a855f7', '#10b981', '#f43f5e'];
   let html = '', after = after0;
 
+  // live child-part picture, shared by several tabs
+  const LS = (tab === 'overview' || tab === 'age' || tab === 'sup') ? livePartList().map(partState) : [];
+  const wip = LS.filter(x => !x.complete);
+  const buckets = [['0–3 days', 0, 3], ['4–7 days', 4, 7], ['8–15 days', 8, 15], ['16–30 days', 16, 30], ['30+ days', 31, 1e9]];
+  const bucketCls = (a) => a > 15 ? 'red' : a > stuckDays() ? 'amber' : 'green';
+  const ageingCard = () => card('Ageing analysis & stuck detector', `Stuck rule: &gt; ${stuckDays()} days`, buckets.map(([l, a, b]) => { const n = wip.filter(x => x.age != null && x.age >= a && x.age <= b).length; return `<button class="bk" data-go="tab:age"><span>${l}</span><span class="pill ${n ? bucketCls(a) : 'slate'}">${n} part${n === 1 ? '' : 's'}</span></button>`; }).join('') + `<div class="t-muted" style="font-size:11px;margin-top:4px">Days since the part reached its current location. Stuck parts: <b class="t-red">${wip.filter(x => x.stuck).length}</b></div>`, 't-red');
+
   if (tab === 'overview') {
-    const al = computeAlerts(); const red = al.filter(a => a.lvl === 'red').length, amber = al.filter(a => a.lvl === 'amber').length;
-    const openOps = (S.data.operations || []).filter(o => o.status !== 'Done' && o.alert_state !== 'late' || (o.status !== 'Done' && o.order_id && !ORDER_DONE.has(orderById(o.order_id)?.status)));
-    const green = openOps.filter(o => opLight(o) === 'green').length;
+    const al = computeAlerts(); const red = al.filter(a => a.lvl === 'red').length;
     const openOrders = (S.data.orders || []).filter(o => !ORDER_DONE.has(o.status));
-    const deliv = orders.filter(o => o.delivered_date && o.delivery_date); const otd = deliv.length ? deliv.filter(o => o.delivered_date <= o.delivery_date).length / deliv.length * 100 : null;
-    const rmP = parts.reduce((s, p) => s + (p.planned_cost || 0), 0), rmA = parts.reduce((s, p) => s + (p.actual_cost || 0), 0), rmPrecv = parts.filter(p => p.actual_cost != null).reduce((s, p) => s + (p.planned_cost || 0), 0);
-    const dOps = ops.filter(o => o.status === 'Done').map(o => computeRow('operations', o));
-    const prP = dOps.filter(o => o.actual_cost != null).reduce((s, o) => s + (o.plan_cost || 0), 0), prA = dOps.reduce((s, o) => s + (o.actual_cost || 0), 0);
-    const recv = (S.data.orders || []).reduce((s, o) => s + Math.max(0, computeRow('orders', o).outstanding || 0), 0);
-    const pay = (S.data.operations || []).reduce((s, o) => s + opPayable(o), 0) + (S.data.grns || []).reduce((s, g) => s + grnPayable(g), 0);
-    const headline = red ? `${red} item${red > 1 ? 's' : ''} late — act today` : amber ? `${amber} item${amber > 1 ? 's need' : ' needs'} attention soon` : openOrders.length ? 'Everything is on track' : 'No open orders';
+    const done = LS.filter(x => x.complete).length, atSup = wip.filter(x => x.loc === 'Supplier').length;
+    const lateN = wip.filter(x => x.late).length, stuckN = wip.filter(x => x.stuck).length;
+    const liveOps = (S.data.operations || []).filter(o => o.order_id && oIdsOpen(o));
+    const doneQ = liveOps.filter(o => o.status === 'Done'); const pq = doneQ.reduce((s, o) => s + (num(o.qty) || 0), 0), bq = doneQ.reduce((s, o) => s + badQty(o), 0);
+    const fpy = pq ? (pq - bq) / pq * 100 : null, rwParts = LS.filter(x => x.st === 'REWORK').length;
+    const actual = LS.reduce((s, x) => s + x.cost, 0), plan = LS.reduce((s, x) => s + x.plan, 0);
+    // process load
+    const byP = {}; for (const o of (S.data.operations || []).filter(liveOp)) { const k = o.process || '—'; byP[k] ??= { parts: new Set(), late: 0, sup: 0 }; byP[k].parts.add(o.part_id || o.drawing_no); if (opLight(o) === 'red') byP[k].late++; if (o.status === 'At supplier') byP[k].sup++; }
+    const pk = Object.keys(byP).sort((a, b) => byP[b].parts.size - byP[a].parts.size).slice(0, 6); const pmax = Math.max(1, ...pk.map(k => byP[k].parts.size));
+    // ledger (live orders)
+    const rmC = LS.reduce((s, x) => s + x.rmCost, 0), prC = LS.reduce((s, x) => s + x.procAct, 0);
+    const debit = liveOps.reduce((s, o) => s + (num(o.debit_amount) || 0), 0);
+    const rmVar = LS.filter(x => x.c.actual_cost != null).reduce((s, x) => s + x.c.actual_cost - (x.c.planned_cost || 0), 0);
+    const prVar = liveOps.map(o => computeRow('operations', o)).filter(o => o.status === 'Done' && o.actual_cost != null && o.plan_cost != null).reduce((s, o) => s + o.actual_cost - o.plan_cost, 0);
+    const vr = rmVar + prVar;
+    const mf = S.ui.mxf || 'active';
+    const mxList = sortMatrix(LS.filter(x => mf === 'all' || (mf === 'active' && !x.complete) || (mf === 'stuck' && (x.stuck || x.late)) || (mf === 'sup' && x.loc === 'Supplier') || (mf === 'shop' && ['IN_PROCESS', 'QUEUED'].includes(x.st)) || (mf === 'mat' && ['MATERIAL_PENDING', 'ROUTE_PENDING'].includes(x.st)) || (mf === 'rw' && x.st === 'REWORK') || (mf === 'done' && x.complete)));
+    const lim = S.ui.dash_all ? 300 : 15;
+    html = `${top}
+    <div class="mk">
+      ${K('Active orders', fmtN(openOrders.length), `${fmtN((S.data.orders || []).length)} total · ${openOrders.filter(o => orderLight(o) === 'red').length} past delivery`, 'orders', '', 't-green')}
+      ${K('Tracked child parts', fmtN(LS.length), `${fmtN(done)}/${fmtN(LS.length)} complete (${LS.length ? fmtN(done / LS.length * 100, 1) : 0}%)`, 'tracker', '', 't-sky')}
+      ${K('Supplier pending', fmtN(atSup), 'parts outside at vendors', 'tab:sup', 't-amber')}
+      ${K('Overdue / stuck', `${fmtN(lateN)} / ${fmtN(stuckN)}`, `stuck rule &gt; ${stuckDays()} d · ${red} red alerts`, 'tab:age', 't-red', 't-red')}
+      ${K('Quality / rework', `${fmtN(bq)} / ${fmtN(rwParts)}`, fpy == null ? 'no inspected output yet' : `${fmtN(fpy, 1)}% first pass yield`, 'tab:qa', 't-purple', 't-purple')}
+      ${K('Cost to date', moneyShort(actual), `Planned: ${moneyShort(plan)}`, 'tab:cost', 't-green')}
+    </div>
+    <div class="g3">
+      ${card('Process load & bottlenecks', 'Live shop + vendor', pk.length ? pk.map((k, i) => `<button class="lb" data-proc="${esc(k)}"><div class="lt"><span>${esc(k)}${byP[k].late ? ` <b class="t-red" style="font-size:11px">· ${byP[k].late} late</b>` : ''}</span><span>${byP[k].parts.size} part${byP[k].parts.size === 1 ? '' : 's'}${byP[k].sup ? ` · ${byP[k].sup} out` : ''}</span></div><div class="tr"><i style="width:${Math.round(byP[k].parts.size / pmax * 100)}%;background:${BAR[i % BAR.length]}"></i></div></button>`).join('') : '<div class="t-muted" style="font-size:12.5px">No open process steps on live orders.</div>')}
+      ${ageingCard()}
+      ${card('Cost ledger & variance', `Currency: ${esc(S.settings.currency || '')} INR`, `
+        <div class="lg"><span>Raw material cost (weight × rate)</span><b>${money(round(rmC))}</b></div>
+        <div class="lg"><span>Subcontract &amp; machining cost (done steps)</span><b class="t-sky">${money(round(prC))}</b></div>
+        <div class="lg"><span>Rejection debits recovered</span><b class="t-red">${money(round(debit))}</b></div>
+        <div class="lg tot"><span>Variance vs planned (received / done)</span><b>${vr > 0 ? '+' : ''}${money(round(vr))}</b></div>
+        <div class="t-muted" style="font-size:11px">Open orders only. Negative = under plan.</div>`, 't-green')}
+    </div>
+    <section class="mxw"><div class="mxh"><div><h3>Live child part control matrix</h3><p>Where every part is, who has it, for how long and what it has cost. Click a row for its process route and history.</p></div>
+      <div class="mxf">${seg('mxf', [['active', `Active ${wip.length}`], ['stuck', `Stuck / late ${wip.filter(x => x.stuck || x.late).length}`], ['sup', `At supplier ${atSup}`], ['shop', 'In shop'], ['mat', 'Material'], ['rw', `Rework ${rwParts}`], ['done', `Complete ${done}`], ['all', 'All']], mf)}<a class="lnk" href="#/tracker">Open full tracker ${ICON.arrowR.replace('<svg ', '<svg width="14" height="14" ')}</a></div></div>
+      ${matrixTable(mxList.slice(0, lim), LS.length ? 'Nothing matches this filter.' : 'Add child parts to an open order to see them here.')}
+      ${mxList.length > 15 ? `<div class="more">${S.ui.dash_all ? `Showing ${fmtN(Math.min(lim, mxList.length))} of ${fmtN(mxList.length)}` : `Top 15 of ${fmtN(mxList.length)}`}<button class="btn sm" data-dall>${S.ui.dash_all ? 'Show fewer' : 'Show all'}</button></div>` : ''}</section>
+    <div class="g2">
+      ${card('Open orders', 'progress vs delivery date', orderBoard(openOrders.slice().sort((a, b) => (a.delivery_date || '9').localeCompare(b.delivery_date || '9')).slice(0, 10)), 't-muted')}
+      ${card('Recent activity', '', `<ul class="feed feed2">${(S.data.activity || []).slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 10).map(a => `<li><div class="avatar" style="width:26px;height:26px;font-size:11px">${esc(initials(a.actor))}</div><div><b>${esc(a.actor)}</b> ${esc(a.action)} ${esc(a.summary || '')}</div><time>${ago(a.created_at)}</time></li>`).join('') || '<li class="muted">Changes by your team show up here.</li>'}</ul>`)}
+    </div>`;
+  }
+
+  if (tab === 'prod') {
+    const lo = (S.data.operations || []).filter(liveOp);
+    const run = lo.filter(o => ['In progress', 'At supplier'].includes(o.status)), inh = lo.filter(o => o.status === 'In progress' && o.owner_type !== 'Supplier');
+    const q = lo.filter(o => ['Planned', 'Assigned'].includes(o.status)), hold = lo.filter(o => o.status === 'On hold'), late = lo.filter(o => opLight(o) === 'red');
+    const dn = (S.data.operations || []).filter(o => o.status === 'Done' && inR(o.done_date, R));
+    const hrs = dn.map(o => computeRow('operations', o)).filter(o => o.owner_type === 'In-house').reduce((s, o) => s + (o._hours || 0), 0);
+    const W = {}; for (const o of lo) { const k = o.process || '—'; W[k] ??= { q: 0, r: 0, s: 0, h: 0, l: 0, d: 0, days: 0, dn: 0 }; const x = W[k]; ['Planned', 'Assigned'].includes(o.status) ? x.q++ : o.status === 'At supplier' ? x.s++ : o.status === 'On hold' ? x.h++ : x.r++; if (opLight(o) === 'red') x.l++; }
+    for (const o of dn) { const k = o.process || '—'; W[k] ??= { q: 0, r: 0, s: 0, h: 0, l: 0, d: 0, days: 0, dn: 0 }; W[k].d++; const d0 = o.start_date || o.sent_date; if (d0) { W[k].days += Math.max(0, daysBetween(d0, o.done_date)); W[k].dn++; } }
+    const wk = Object.keys(W).sort((a, b) => (W[b].q + W[b].r + W[b].s + W[b].h) - (W[a].q + W[a].r + W[a].s + W[a].h) || W[b].d - W[a].d);
+    const cell = (v, cls) => v ? `<span class="pill ${cls}">${v}</span>` : '<span class="t-muted">0</span>';
     html = `${top}${flowStrip('')}
-    <div class="dash-head">
-      <div class="andon" role="group" aria-label="Plant status">
-        <div class="stack">
-          <a href="#/alerts?lvl=red" class="${red ? 'lit' : ''} red"><small>Late</small>${red}</a>
-          <a href="#/alerts?lvl=amber" class="${amber ? 'lit' : ''} amber"><small>Attention</small>${amber}</a>
-          <a href="#/process?f=open" class="${green ? 'lit' : ''} green"><small>On track</small>${green}</a>
-        </div>
-        <div class="msg"><b>${esc(headline)}</b><span>${fmtN(openOrders.length)} open order${openOrders.length === 1 ? '' : 's'} · ${fmtN(openOps.length)} process steps running</span><br><a class="btn sm" href="#/alerts">Review alerts</a></div>
-      </div>
-      <div class="kpis">
-        ${kpi('Open orders', fmtN(openOrders.length), `${openOrders.filter(o => orderLight(o) === 'red').length} past delivery`, 'orders')}
-        ${kpi('On-time delivery', otd == null ? '—' : fmtN(otd, 0) + '%', deliv.length ? `${deliv.length} delivered` : 'record delivered dates', 'dashboard', otd != null && otd < 90 ? 'warn' : '')}
-        ${kpi('RM cost vs plan', rmPrecv ? `${rmA > rmPrecv ? '+' : ''}${fmtN((rmA - rmPrecv) / rmPrecv * 100, 1)}%` : '—', `plan ${moneyShort(rmP)} · actual ${moneyShort(rmA)}`, 'dashboard', rmA > rmPrecv * 1.05 ? 'warn' : '')}
-        ${kpi('Process cost vs plan', prP ? `${prA > prP ? '+' : ''}${fmtN((prA - prP) / prP * 100, 1)}%` : '—', `actual ${moneyShort(prA)} on done steps`, 'dashboard', prA > prP * 1.05 ? 'warn' : '')}
-        ${kpi('Receivables', moneyShort(recv), 'from customers', 'accounts')}
-        ${kpi('Payables', moneyShort(pay), 'to suppliers', 'accounts?tab=pay')}
-      </div>
+    <div class="mk">
+      ${K('Steps running', fmtN(run.length), `${fmtN(run.length - inh.length)} at suppliers`, 'process?f=open', 't-sky')}
+      ${K('In-house in process', fmtN(inh.length), 'machine shop', 'mywork', '')}
+      ${K('Queued', fmtN(q.length), 'planned / assigned, not started', 'process?f=open', 't-muted')}
+      ${K('Late steps', fmtN(late.length), 'past target date', 'alerts?lvl=red', 't-red', 't-red')}
+      ${K('On hold', fmtN(hold.length), hold[0]?.hold_reason ? esc(hold[0].hold_reason) : 'waiting on something', 'process?f=open', 't-amber')}
+      ${K('Completed', fmtN(dn.length), `${pname} · ${fmtN(hrs, 0)} machine h`, 'process?f=done', 't-green')}
     </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>Open orders</h3><p>progress against delivery date</p></header><div class="body">${orderBoard(openOrders.slice().sort((a, b) => (a.delivery_date || '9').localeCompare(b.delivery_date || '9')).slice(0, 10))}</div></section>
-      <section class="panel"><header><h3>Workload by owner</h3><p>open process steps</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_load"></canvas></div></div></section>
+    <div class="g2">
+      ${card('Workload by owner', 'open steps · click a bar', chart('c_load', 300), 't-muted')}
+      ${card('Process steps completed', `by month · ${pname}`, chart('c_thru', 300), 't-muted')}
     </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>Process steps completed</h3><p>by month · in-house vs suppliers</p></header><div class="body"><div class="chartbox" style="height:280px"><canvas id="c_thru"></canvas></div></div></section>
-      <section class="panel"><header><h3>Orders received</h3><p>by month · parts planned</p></header><div class="body"><div class="chartbox" style="height:280px"><canvas id="c_ord"></canvas></div></div></section>
-    </div>
-    <div class="grid3">
-      <section class="panel"><header><h3>Due in the next 7 days</h3></header><div class="body">${dueList()}</div></section>
-      <section class="panel"><header><h3>Recent activity</h3></header><div class="body"><ul class="feed">${(S.data.activity || []).slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 9).map(a => `<li><div class="avatar" style="width:26px;height:26px;font-size:11px">${esc(initials(a.actor))}</div><div><b>${esc(a.actor)}</b> ${esc(a.action)} ${esc(a.summary || '')}</div><time>${ago(a.created_at)}</time></li>`).join('') || '<li class="muted">Changes by your team show up here.</li>'}</ul></div></section>
+    <section class="mxw"><div class="mxh"><div><h3>Work-in-process by process</h3><p>Open steps on live orders, and average days per step completed ${pname}.</p></div></div>
+      <div class="mxs"><table class="mx" style="min-width:760px"><thead><tr><th>Process</th><th>Queued</th><th>Running</th><th>At supplier</th><th>On hold</th><th>Late</th><th>Done (${esc(pname)})</th><th>Avg days / step</th></tr></thead><tbody>${wk.map(k => { const x = W[k]; return `<tr data-proc="${esc(k)}"><td class="pn">${esc(k)}</td><td>${cell(x.q, 'slate')}</td><td>${cell(x.r, 'sky')}</td><td>${cell(x.s, 'amber')}</td><td>${cell(x.h, 'amber')}</td><td>${cell(x.l, 'red')}</td><td class="mono">${fmtN(x.d)}</td><td class="mono">${x.dn ? fmtN(x.days / x.dn, 1) : '—'}</td></tr>`; }).join('') || '<tr><td colspan="8" class="t-muted" style="padding:20px 12px">No process steps yet.</td></tr>'}</tbody></table></div></section>
+    <div class="g2">
+      ${card('Due in the next 7 days', '', dueList(), '')}
+      ${card('Open orders', 'progress vs delivery date', orderBoard((S.data.orders || []).filter(o => !ORDER_DONE.has(o.status)).sort((a, b) => (a.delivery_date || '9').localeCompare(b.delivery_date || '9')).slice(0, 10)), 't-muted')}
     </div>`;
     after = () => {
       after0(); const c = C();
-      const L = {}; for (const o of openOps) { const k = ownerName(o); L[k] ??= { g: 0, a: 0, r: 0 }; const l = opLight(o); l === 'red' ? L[k].r++ : l === 'amber' ? L[k].a++ : L[k].g++; }
+      const L = {}; for (const o of lo) { const k = ownerName(o); L[k] ??= { g: 0, a: 0, r: 0 }; const l = opLight(o); l === 'red' ? L[k].r++ : l === 'amber' ? L[k].a++ : L[k].g++; }
       const ks = Object.keys(L).sort((a, b) => (L[b].r + L[b].a + L[b].g) - (L[a].r + L[a].a + L[a].g)).slice(0, 10);
-      if (!ks.length) { const el = document.getElementById('c_load'); if (el) el.parentElement.innerHTML = '<div class="empty"><b>No open process steps</b>Workload appears here once orders are open and steps are assigned.</div>'; }
-      if (ks.length) mkChart('c_load', { type: 'bar', data: { labels: ks.map(short), datasets: [{ label: 'Late', data: ks.map(k => L[k].r), backgroundColor: c.red, borderRadius: 3 }, { label: 'Due soon', data: ks.map(k => L[k].a), backgroundColor: c.amber, borderRadius: 3 }, { label: 'On track', data: ks.map(k => L[k].g), backgroundColor: c.green, borderRadius: 3 }] }, legend: true, options: { indexAxis: 'y', scales: { x: { stacked: true, ticks: { precision: 0 }, grid: { color: c.line } }, y: { stacked: true, grid: { display: false } } }, onClick: (e, els) => { if (els[0]) { S.ui.q_proc = ks[els[0].index]; saveUI(); go('process'); } } } });
-      const lab = k => MONTHS[+k.slice(5) - 1] + ' ' + k.slice(2, 4);
-      const TH = {}; for (const x of S.data.operations || []) { if (x.status !== 'Done' || !inR(x.done_date, R)) continue; const k = x.done_date.slice(0, 7); TH[k] ??= { i: 0, s: 0 }; x.owner_type === 'Supplier' ? TH[k].s++ : TH[k].i++; }
+      if (!ks.length) { const el = document.getElementById('c_load'); if (el) el.parentElement.outerHTML = '<div class="empty" style="padding:18px 10px"><b>No open process steps</b>Workload appears here once orders are open and steps are assigned.</div>'; }
+      else mkChart('c_load', { type: 'bar', data: { labels: ks.map(short), datasets: [{ label: 'Late', data: ks.map(k => L[k].r), backgroundColor: c.red, borderRadius: 3 }, { label: 'Due soon', data: ks.map(k => L[k].a), backgroundColor: c.amber, borderRadius: 3 }, { label: 'On track', data: ks.map(k => L[k].g), backgroundColor: c.green, borderRadius: 3 }] }, legend: true, options: { indexAxis: 'y', scales: { x: { stacked: true, ticks: { precision: 0 }, grid: { color: c.line } }, y: { stacked: true, grid: { display: false } } }, onClick: (e, els) => { if (els[0]) { S.ui.q_proc = ks[els[0].index]; saveUI(); go('process'); } } } });
+      const TH = {}; for (const x of dn) { const k = x.done_date.slice(0, 7); TH[k] ??= { i: 0, s: 0 }; x.owner_type === 'Supplier' ? TH[k].s++ : TH[k].i++; }
       const tk = Object.keys(TH).sort().slice(-18);
-      mkChart('c_thru', { type: 'bar', data: { labels: tk.map(lab), datasets: [{ label: 'In-house', data: tk.map(k => TH[k].i), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Suppliers', data: tk.map(k => TH[k].s), backgroundColor: c.amber, borderRadius: 3 }] }, legend: true, options: { scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } } } } });
-      const OM = {}; for (const o of S.data.orders || []) { if (!inR(o.order_date, R)) continue; const k = o.order_date.slice(0, 7); OM[k] ??= { o: 0, p: 0 }; OM[k].o++; OM[k].p += partsOfOrder(o).length; }
-      const ok = Object.keys(OM).sort().slice(-18);
-      mkChart('c_ord', { data: { labels: ok.map(lab), datasets: [{ type: 'bar', label: 'Orders', data: ok.map(k => OM[k].o), backgroundColor: c.steel, borderRadius: 3, yAxisID: 'y' }, { type: 'line', label: 'Parts', data: ok.map(k => OM[k].p), borderColor: c.amber, backgroundColor: c.amber, tension: .3, pointRadius: 3, yAxisID: 'y1' }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } }, y1: { position: 'right', beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } } });
-      $$('[data-order]').forEach(el => el.onclick = () => go('order?id=' + el.dataset.order));
-      $$('[data-dueop]').forEach(el => el.onclick = () => { const op = S.data.operations.find(x => x.id === el.dataset.dueop); openRecord('operations', op); });
+      mkChart('c_thru', { type: 'bar', data: { labels: tk.map(lab), datasets: [{ label: 'In-house', data: tk.map(k => TH[k].i), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Suppliers', data: tk.map(k => TH[k].s), backgroundColor: c.brand, borderRadius: 3 }] }, legend: true, options: { scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } } } } });
     };
   }
 
-  if (tab === 'rm') {
+  if (tab === 'sup') {
+    const out = (S.data.operations || []).filter(o => liveOp(o) && o.owner_type === 'Supplier' && ['At supplier', 'In progress', 'On hold'].includes(o.status));
+    const toSend = (S.data.operations || []).filter(o => liveOp(o) && o.owner_type === 'Supplier' && ['Planned', 'Assigned'].includes(o.status));
+    const daysOut = o => o.sent_date || o.start_date ? daysBetween(o.sent_date || o.start_date, today()) : null;
+    const avgOut = out.filter(o => daysOut(o) != null); const avg = avgOut.length ? avgOut.reduce((s, o) => s + daysOut(o), 0) / avgOut.length : null;
+    const dnS = (S.data.operations || []).filter(o => o.owner_type === 'Supplier' && o.status === 'Done' && o.target_date && o.done_date && inR(o.done_date, R));
+    const byS = {}; for (const o of dnS) { const k = o.supplier || '—'; byS[k] ??= { n: 0, ot: 0 }; byS[k].n++; if (o.done_date <= o.target_date) byS[k].ot++; }
+    for (const g of (S.data.grns || []).filter(g => inR(g.grn_date, R))) { const p = poById(g.po_id); if (!p?.expected_date) continue; const k = g.supplier || '—'; byS[k] ??= { n: 0, ot: 0 }; byS[k].n++; if (g.grn_date <= p.expected_date) byS[k].ot++; }
+    const sk = Object.keys(byS).sort((a, b) => byS[b].n - byS[a].n).slice(0, 12);
+    const pay = {}; for (const o of S.data.operations || []) { const v = opPayable(o); if (v) pay[o.supplier] = (pay[o.supplier] || 0) + v; } for (const g of S.data.grns || []) { const v = grnPayable(g); if (v) pay[g.supplier] = (pay[g.supplier] || 0) + v; }
+    const tot = Object.values(byS).reduce((s, x) => s + x.n, 0), ot = Object.values(byS).reduce((s, x) => s + x.ot, 0), payT = Object.values(pay).reduce((s, v) => s + v, 0);
+    const grp = {}; for (const o of out) (grp[o.supplier || '—'] ??= []).push(o);
+    const gk = Object.keys(grp).sort((a, b) => grp[b].filter(o => opLight(o) === 'red').length - grp[a].filter(o => opLight(o) === 'red').length || grp[b].length - grp[a].length);
+    html = `${top}
+    <div class="mk">
+      ${K('At suppliers now', fmtN(out.length), `${fmtN(gk.length)} vendors · ${fmtN(uniq(out.map(o => o.part_id || o.drawing_no)).length)} parts`, 'tab:sup', 't-amber')}
+      ${K('Overdue at suppliers', fmtN(out.filter(o => opLight(o) === 'red').length), 'past target date', 'alerts?lvl=red', 't-red', 't-red')}
+      ${K('Avg days outside', avg == null ? '—' : fmtN(avg, 1) + ' d', 'since sent', 'tab:sup', 't-sky')}
+      ${K('Waiting to send', fmtN(toSend.length), 'planned supplier steps', 'process?f=open', '')}
+      ${K('Supplier on-time rate', tot ? fmtN(ot / tot * 100, 0) + '%' : '—', `${ot} of ${tot} returns / RM on time · ${pname}`, 'process?f=done', tot && ot / tot < .85 ? 't-red' : 't-green')}
+      ${K('Payables', moneyShort(payT), `${Object.keys(pay).length} suppliers`, 'accounts?tab=pay', 't-brand')}
+    </div>
+    <section class="mxw"><div class="mxh"><div><h3>Parts outside at suppliers now</h3><p>Grouped by vendor, most overdue first. One tap sends a WhatsApp status request listing every part.</p></div>${canEdit() || myRole() === 'member' ? `<div class="row"><button class="btn sm" data-fa2="out">${ICON.truck}Send more out</button><button class="btn sm pri" data-fa2="in">${ICON.pkg}Receive parts back</button></div>` : ''}</div>
+      <div class="mxs"><table class="mx" style="min-width:880px"><thead><tr><th>Supplier</th><th>Drawing no.</th><th>Part</th><th>Process</th><th>Qty</th><th>Sent</th><th>Days out</th><th>Target</th><th>Status</th></tr></thead><tbody>${gk.map(k => { const sp = supplierByName(k); return grp[k].sort((a, b) => (a.target_date || '9').localeCompare(b.target_date || '9')).map((o, i) => { const l = opLight(o); return `<tr data-opid="${o.id}">${i === 0 ? `<td rowspan="${grp[k].length}" style="vertical-align:top;border-right:1px solid var(--line-2)"><div class="pn">${esc(k)}</div><div class="sub">${grp[k].length} step${grp[k].length === 1 ? '' : 's'}</div>${sp?.phone ? `<a class="btn sm wa" style="margin-top:6px" target="_blank" rel="noopener" href="${esc(waLink(sp.phone, chaseText(k, grp[k])))}">${ICON.wa}Chase</a>` : ''}</td>` : ''}<td class="pid">${esc(o.drawing_no)}</td><td>${esc(o.part_name || '')}</td><td class="cur">${esc(o.process || '')}</td><td class="mono">${fmtN(o.qty)}</td><td class="mono">${fmtD(o.sent_date || o.start_date)}</td><td class="mono">${daysOut(o) ?? '—'}${daysOut(o) > stuckDays() ? '<span class="stuck">STUCK</span>' : ''}</td><td class="mono ${l === 'red' ? 't-red' : ''}">${fmtD(o.target_date)}</td><td><span class="st ${l === 'red' ? 'red' : l === 'amber' ? 'amber' : 'sky'}">${esc(o.status.toUpperCase().replace(/ /g, '_'))}</span></td></tr>`; }).join(''); }).join('') || '<tr><td colspan="9" class="t-muted" style="padding:22px 12px;text-align:center">Nothing is outside at a supplier right now.</td></tr>'}</tbody></table></div></section>
+    <div class="g2">
+      ${card('Supplier on-time rate', `process returns + RM · ${pname}`, chart('c_sot', 320), 't-muted')}
+      ${card('Payables by supplier', 'job work + RM bills', chart('c_pay', 320), 't-muted')}
+    </div>`;
+    after = () => {
+      after0(); const c = C(); const pk = Object.keys(pay).sort((a, b) => pay[b] - pay[a]).slice(0, 10);
+      $$('[data-fa2]').forEach(b => b.onclick = () => FLOOR[b.dataset.fa2]());
+      mkChart('c_sot', { type: 'bar', data: { labels: sk.map(short), datasets: [{ data: sk.map(k => Math.round(byS[k].ot / byS[k].n * 100)), backgroundColor: sk.map(k => byS[k].ot / byS[k].n >= .9 ? c.green : byS[k].ot / byS[k].n >= .75 ? c.amber : c.red), borderRadius: 3 }] }, options: { indexAxis: 'y', scales: { x: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: c.line } }, y: { grid: { display: false } } } } });
+      mkChart('c_pay', { type: 'bar', data: { labels: pk.map(short), datasets: [{ data: pk.map(k => Math.round(pay[k])), backgroundColor: c.brand, borderRadius: 3 }] }, options: { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, y: { grid: { display: false } } } } });
+    };
+  }
+
+  if (tab === 'qa') {
+    const dn = (S.data.operations || []).filter(o => o.status === 'Done' && inR(o.done_date, R));
+    const pq = dn.reduce((s, o) => s + (num(o.qty) || 0), 0), bq = dn.reduce((s, o) => s + badQty(o), 0);
+    const insp = dn.filter(o => o.inspection), rw = dn.filter(isRework), debit = dn.reduce((s, o) => s + (num(o.debit_amount) || 0), 0);
+    const waiting = (S.data.operations || []).filter(o => o.status === 'Done' && !o.inspection && (o.done_date || '') >= addDays(today(), -30));
+    const byP = {}, byO = {}; for (const o of dn) { const k = o.process || '—', w = ownerName(o); byP[k] ??= { q: 0, b: 0 }; byP[k].q += num(o.qty) || 0; byP[k].b += badQty(o); byO[w] ??= { q: 0, b: 0 }; byO[w].q += num(o.qty) || 0; byO[w].b += badQty(o); }
+    const pk = Object.keys(byP).filter(k => byP[k].b).sort((a, b) => byP[b].b - byP[a].b).slice(0, 10), ok = Object.keys(byO).filter(k => byO[k].b).sort((a, b) => byO[b].b - byO[a].b).slice(0, 10);
+    const ev = dn.filter(o => badQty(o) || isRework(o)).sort((a, b) => (b.done_date || '').localeCompare(a.done_date || ''));
+    const fpy = pq ? (pq - bq) / pq * 100 : null;
+    html = `${top}
+    <div class="mk">
+      ${K('First pass yield', fpy == null ? '—' : fmtN(fpy, 1) + '%', `good ÷ processed qty · ${pname}`, 'tab:qa', fpy != null && fpy < 95 ? 't-red' : 't-green')}
+      ${K('Processed qty', fmtN(pq), `${fmtN(dn.length)} completed steps`, 'process?f=done', '')}
+      ${K('Rejected / rework qty', fmtN(bq), `${fmtN(ev.length)} quality events`, 'tab:qa', 't-purple')}
+      ${K('Rework / not-OK steps', fmtN(rw.length), 'from inspection results', 'tab:qa', 't-red')}
+      ${K('Debits recovered', moneyShort(debit), 'charged back to suppliers', 'accounts?tab=pay', 't-brand')}
+      ${K('Awaiting inspection', fmtN(waiting.length), `done in last 30 days · ${fmtN(insp.length)} inspected ${pname}`, 'tab:qa', waiting.length ? 't-amber' : '')}
+    </div>
+    <div class="g2">
+      ${card('Rejections by process', 'rejected + rework qty', pk.length ? chart('c_qp', 280) : '<div class="t-muted" style="font-size:12.5px">No rejections recorded in this period.</div>', 't-muted')}
+      ${card('Rejections by supplier / operator', 'rejected + rework qty', ok.length ? chart('c_qo', 280) : '<div class="t-muted" style="font-size:12.5px">No rejections recorded in this period.</div>', 't-muted')}
+    </div>
+    <section class="mxw"><div class="mxh"><div><h3>Quality events</h3><p>Completed steps with rejections, rework or not-OK inspection · ${esc(pname)}. Click to open the step.</p></div>${canEdit() || myRole() === 'member' ? `<button class="btn sm pri" data-fa2="qc">${ICON.shield}Inspect parts</button>` : ''}</div>
+      <div class="mxs"><table class="mx" style="min-width:860px"><thead><tr><th>Date</th><th>Drawing no.</th><th>Part</th><th>Process</th><th>Supplier / operator</th><th>Inspection</th><th>Qty</th><th>Rejected</th><th>Debit</th></tr></thead><tbody>${ev.slice(0, S.ui.dash_all ? 300 : 20).map(o => `<tr data-opid="${o.id}"><td class="mono">${fmtD(o.done_date)}</td><td class="pid">${esc(o.drawing_no)}</td><td>${esc(o.part_name || '')}</td><td class="cur">${esc(o.process || '')}</td><td>${esc(ownerName(o))}</td><td>${o.inspection ? `<span class="st ${isRework(o) ? 'red' : 'green'}">${esc(o.inspection.toUpperCase())}</span>` : '<span class="t-muted">—</span>'}</td><td class="mono">${fmtN(o.qty)}</td><td class="mono t-red">${fmtN(badQty(o))}</td><td class="mono">${num(o.debit_amount) ? money(o.debit_amount) : '—'}</td></tr>`).join('') || '<tr><td colspan="9" class="t-muted" style="padding:22px 12px;text-align:center">No rejections or rework recorded in this period.</td></tr>'}</tbody></table></div>${moreBtn(ev.length)}</section>`;
+    after = () => {
+      after0(); const c = C();
+      $$('[data-fa2]').forEach(b => b.onclick = () => FLOOR[b.dataset.fa2]());
+      if (pk.length) mkChart('c_qp', { type: 'bar', data: { labels: pk.map(short), datasets: [{ label: 'Rejected qty', data: pk.map(k => byP[k].b), backgroundColor: c.purple, borderRadius: 3 }] }, options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
+      if (ok.length) mkChart('c_qo', { type: 'bar', data: { labels: ok.map(short), datasets: [{ label: 'Rejected qty', data: ok.map(k => byO[k].b), backgroundColor: c.red, borderRadius: 3 }] }, options: { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } }, y: { grid: { display: false } } } } });
+    };
+  }
+
+  if (tab === 'mat') {
     const pk = parts.reduce((s, p) => s + (p.planned_weight || 0), 0), ak = parts.reduce((s, p) => s + (num(p.actual_weight) || 0), 0);
     const pc = parts.reduce((s, p) => s + (p.planned_cost || 0), 0), ac = parts.reduce((s, p) => s + (p.actual_cost || 0), 0);
     const recvParts = parts.filter(p => p.actual_cost != null); const pcRecv = recvParts.reduce((s, p) => s + (p.planned_cost || 0), 0);
@@ -1633,58 +2026,105 @@ function viewDashboard() {
     const rows = Object.values(byO).filter(x => x.o).sort((a, b) => b.pc - a.pc);
     const byG = {}; for (const p of parts) { const g = p.grade || '—'; byG[g] ??= { pk: 0, ak: 0 }; byG[g].pk += p.planned_weight || 0; byG[g].ak += num(p.actual_weight) || 0; }
     const gk = Object.keys(byG).sort((a, b) => byG[b].pk - byG[a].pk).slice(0, 10);
-    html = `${top}<div class="kpis wide">
-      ${kpi('Planned RM', fmtN(pk, 0) + ' kg', `${fmtN(parts.length)} parts`, 'rmplan')}
-      ${kpi('Received RM', fmtN(ak, 0) + ' kg', pk ? fmtN(ak / pk * 100, 0) + '% of plan' : '', 'purchase')}
-      ${kpi('Planned RM cost', moneyShort(pc), 'from RM master rates', 'rmplan')}
-      ${kpi('Actual RM cost', moneyShort(ac), recvParts.length ? `vs ${moneyShort(pcRecv)} planned for the same parts` : 'no GRNs yet', 'purchase', ac > pcRecv * 1.05 ? 'warn' : '')}
-      ${kpi('Parts still to buy', fmtN(parts.filter(p => rmStage(p) === 'To buy').length), 'raise a PO', 'rmplan?f=To buy')}
+    const T = {}; for (const p of parts) { const t = p.type || (num(p.dia) ? 'Rod' : num(p.width) ? 'Plate' : 'Unsized'); T[t] ??= { n: 0, kg: 0 }; T[t].n++; T[t].kg += p.planned_weight || 0; }
+    const tk = Object.keys(T).sort((a, b) => T[b].kg - T[a].kg); const tmax = Math.max(1, ...tk.map(k => T[k].kg));
+    const low = (S.data.materials || []).filter(m => num(m.min_stock_kg) && (num(m.stock_kg) || 0) < num(m.min_stock_kg));
+    const unsized = parts.filter(p => !p.planned_weight).length;
+    html = `${top}<div class="mk">
+      ${K('Planned RM', fmtN(pk, 0) + ' kg', `${fmtN(parts.length)} parts · ${pname}`, 'rmplan', '')}
+      ${K('Received RM', fmtN(ak, 0) + ' kg', pk ? fmtN(ak / pk * 100, 0) + '% of plan' : 'no GRNs yet', 'purchase', 't-green')}
+      ${K('Planned RM cost', moneyShort(pc), 'weight × rate + cutting', 'rmplan', 't-brand')}
+      ${K('Actual RM cost', moneyShort(ac), recvParts.length ? `vs ${moneyShort(pcRecv)} planned, same parts` : 'no GRNs yet', 'purchase', ac > pcRecv * 1.05 ? 't-red' : 't-green')}
+      ${K('Parts still to buy', fmtN(parts.filter(p => rmStage(p) === 'To buy').length), 'raise a PO', 'rmplan?f=To buy', 't-amber')}
+      ${K('Low-stock grades', fmtN(low.length), unsized ? `${fmtN(unsized)} parts without size / weight` : 'all parts sized', 'materials', low.length ? 't-red' : '')}
     </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>RM cost by order</h3><p>plan vs actual</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_rmo"></canvas></div></div></section>
-      <section class="panel"><header><h3>RM weight by grade</h3><p>planned vs received kg</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_rmg"></canvas></div></div></section>
+    <div class="g2">
+      ${card('RM cost by order', 'plan vs actual', chart('c_rmo', 300), 't-muted')}
+      ${card('RM weight by grade', 'planned vs received kg', chart('c_rmg', 300), 't-muted')}
+    </div>
+    <div class="g2">
+      ${card('Size mix', 'planned kg by part type', tk.map((k, i) => `<div class="lb" style="cursor:default"><div class="lt"><span>${esc(k)}</span><span>${fmtN(T[k].n)} parts · ${fmtN(T[k].kg, 1)} kg</span></div><div class="tr"><i style="width:${Math.round(T[k].kg / tmax * 100)}%;background:${BAR[i % BAR.length]}"></i></div></div>`).join('') || '<div class="t-muted" style="font-size:12.5px">No parts in this period.</div>', 't-muted')}
+      ${card('Stock & re-order', 'from the RM master', (S.data.materials || []).slice().sort((a, b) => ((num(a.stock_kg) || 0) - (num(a.min_stock_kg) || 0)) - ((num(b.stock_kg) || 0) - (num(b.min_stock_kg) || 0))).slice(0, 8).map(m => { const lo = num(m.min_stock_kg) && (num(m.stock_kg) || 0) < num(m.min_stock_kg); return `<div class="lg"><span>${esc(m.grade)}${m.preferred_supplier ? ` · ${esc(m.preferred_supplier)}` : ''}</span><b class="${lo ? 't-red' : ''}">${fmtN(m.stock_kg, 1)} kg${num(m.min_stock_kg) ? ` / min ${fmtN(m.min_stock_kg)}` : ''}</b></div>`; }).join('') || '<div class="t-muted" style="font-size:12.5px">Add grades in the RM master.</div>', 't-muted')}
     </div>
     <section class="panel"><header><h3>Plan vs actual by order</h3><p>variance is measured on parts already received</p></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Order</th><th class="r">Parts</th><th class="r">Plan kg</th><th class="r">Recd kg</th><th class="r">Plan cost</th><th class="r">Actual cost</th><th>Variance</th><th class="r">To buy</th></tr></thead><tbody>${rows.slice(0, S.ui.dash_all ? 80 : 10).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td class="r num" data-label="Parts">${fmtN(x.n)}</td><td class="r num" data-label="Plan kg">${fmtN(x.pk, 1)}</td><td class="r num" data-label="Recd kg">${fmtN(x.ak, 1)}</td><td class="r num" data-label="Plan cost">${money(x.pc)}</td><td class="r num" data-label="Actual">${money(x.ac)}</td><td data-label="Variance">${varChip(x.pcr, x.pcr ? x.ac : null)}</td><td class="r num" data-label="To buy">${x.buy ? `<span class="chip amber">${x.buy}</span>` : '0'}</td></tr>`).join('') || '<tr><td class="muted">No RM plans in this period.</td></tr>'}</tbody></table></div>${moreBtn(rows.length)}</div></section>`;
     after = () => {
       after0(); const c = C(); const top10 = rows.slice(0, 10);
-      mkChart('c_rmo', { type: 'bar', data: { labels: top10.map(x => x.o.order_no), datasets: [{ label: 'Plan', data: top10.map(x => Math.round(x.pc)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Actual', data: top10.map(x => Math.round(x.ac)), backgroundColor: c.amber, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
+      mkChart('c_rmo', { type: 'bar', data: { labels: top10.map(x => x.o.order_no), datasets: [{ label: 'Plan', data: top10.map(x => Math.round(x.pc)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Actual', data: top10.map(x => Math.round(x.ac)), backgroundColor: c.brand, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
       mkChart('c_rmg', { type: 'bar', data: { labels: gk, datasets: [{ label: 'Planned kg', data: gk.map(g => round(byG[g].pk, 1)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Received kg', data: gk.map(g => round(byG[g].ak, 1)), backgroundColor: c.green, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, grid: { color: c.line } }, x: { grid: { display: false } } } } });
-      $$('[data-order]').forEach(el => el.onclick = () => go('order?id=' + el.dataset.order));
     };
   }
 
-  if (tab === 'proc') {
+  if (tab === 'age') {
+    const st = wip.filter(x => x.stuck), ages = wip.filter(x => x.age != null);
+    const avg = ages.length ? ages.reduce((s, x) => s + x.age, 0) / ages.length : null, oldest = ages.reduce((m, x) => Math.max(m, x.age), 0);
+    const byL = {}; for (const x of st) byL[x.loc] = (byL[x.loc] || 0) + 1; const lk = Object.keys(byL).sort((a, b) => byL[b] - byL[a]); const lmax = Math.max(1, ...lk.map(k => byL[k]));
+    const list = sortMatrix(wip.filter(x => x.stuck || x.late));
+    html = `${top}<div class="mk">
+      ${K('Parts in WIP', fmtN(wip.length), 'not complete, open orders', 'tracker', '')}
+      ${K('Stuck parts', fmtN(st.length), `no movement for &gt; ${stuckDays()} days`, 'tab:age', 't-red', 't-red')}
+      ${K('Stuck at suppliers', fmtN(st.filter(x => x.loc === 'Supplier').length), 'chase from Supplier tab', 'tab:sup', 't-amber')}
+      ${K('Stuck in house', fmtN(st.filter(x => x.loc !== 'Supplier').length), 'shop, stores, hold, rework', 'tab:age', 't-sky')}
+      ${K('Average age', avg == null ? '—' : fmtN(avg, 1) + ' d', 'at current location', 'tab:age', '')}
+      ${K('Oldest', fmtN(oldest) + ' d', 'longest waiting part', 'tab:age', oldest > stuckDays() ? 't-red' : '')}
+    </div>
+    <div class="g3">
+      ${ageingCard()}
+      ${card('Age profile', 'parts per bucket', chart('c_age', 250), 't-muted')}
+      ${card('Where stuck parts sit', `${st.length} stuck`, lk.map((k, i) => `<div class="lb" style="cursor:default"><div class="lt"><span>${esc(k)}</span><span>${byL[k]} part${byL[k] === 1 ? '' : 's'}</span></div><div class="tr"><i style="width:${Math.round(byL[k] / lmax * 100)}%;background:${BAR[(i + 5) % BAR.length]}"></i></div></div>`).join('') || '<div class="t-muted" style="font-size:12.5px">Nothing is stuck. 👍</div>', 't-red')}
+    </div>
+    <section class="mxw"><div class="mxh"><div><h3>Stuck & late parts</h3><p>Oldest first. Change the stuck rule in Settings → Alert rules.</p></div><a class="lnk" href="#/settings?tab=rules">Stuck rule: ${stuckDays()} days</a></div>
+      ${matrixTable(list.slice(0, S.ui.dash_all ? 300 : 40), 'No stuck or late parts. 👍')}${list.length > 40 ? `<div class="more"><button class="btn sm" data-dall>${S.ui.dash_all ? 'Show fewer' : `Show all ${list.length}`}</button></div>` : ''}</section>`;
+    after = () => {
+      after0(); const c = C();
+      const cnt = buckets.map(([, a, b]) => wip.filter(x => x.age != null && x.age >= a && x.age <= b).length);
+      mkChart('c_age', { type: 'bar', data: { labels: buckets.map(b => b[0]), datasets: [{ data: cnt, backgroundColor: buckets.map(([, a]) => a > 15 ? c.red : a > stuckDays() ? c.amber : c.green), borderRadius: 4 }] }, options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
+    };
+  }
+
+  if (tab === 'cost') {
     const C2 = ops.map(o => computeRow('operations', o));
     const planAll = C2.reduce((s, o) => s + (o.plan_cost || 0), 0), done = C2.filter(o => o.status === 'Done'), act = done.reduce((s, o) => s + (o.actual_cost || 0), 0), planDone = done.filter(o => o.actual_cost != null).reduce((s, o) => s + (o.plan_cost || 0), 0);
     const noPlan = C2.filter(o => o.plan_cost == null && o.status !== 'Done').length;
+    const rmP = parts.reduce((s, p) => s + (p.planned_cost || 0), 0), rmA = parts.reduce((s, p) => s + (p.actual_cost || 0), 0), rmPr = parts.filter(p => p.actual_cost != null).reduce((s, p) => s + (p.planned_cost || 0), 0);
+    const debit = C2.reduce((s, o) => s + (num(o.debit_amount) || 0), 0);
+    const tv = (rmA - rmPr) + (act - planDone), tp = rmPr + planDone;
     const byP = {}; for (const o of C2) { const k = o.process || '—'; byP[k] ??= { p: 0, a: 0, pd: 0 }; byP[k].p += o.plan_cost || 0; if (o.status === 'Done' && o.actual_cost != null) { byP[k].a += o.actual_cost; byP[k].pd += o.plan_cost || 0; } }
     const pk = Object.keys(byP).sort((a, b) => byP[b].p - byP[a].p).slice(0, 10);
-    const byO = {}; for (const o of C2) { const ord = orderById(o.order_id); if (!ord) continue; byO[ord.id] ??= { o: ord, n: 0, d: 0, p: 0, a: 0, pd: 0, sup: 0, inh: 0 }; const x = byO[ord.id]; x.n++; if (o.status === 'Done') x.d++; x.p += o.plan_cost || 0; if (o.status === 'Done' && o.actual_cost != null) { x.a += o.actual_cost; x.pd += o.plan_cost || 0; } o.owner_type === 'Supplier' ? x.sup += o.actual_cost ?? o.plan_cost ?? 0 : x.inh += o.actual_cost ?? o.plan_cost ?? 0; }
-    const rows = Object.values(byO).sort((a, b) => b.p - a.p);
-    html = `${top}<div class="kpis wide">
-      ${kpi('Planned process cost', moneyShort(planAll), `${fmtN(C2.length)} steps`, 'process')}
-      ${kpi('Actual on completed', moneyShort(act), `${fmtN(done.length)} steps done`, 'process?f=done')}
-      ${kpi('Variance on completed', planDone ? `${act > planDone ? '+' : ''}${fmtN((act - planDone) / planDone * 100, 1)}%` : '—', planDone ? `plan ${moneyShort(planDone)}` : 'enter actual rates', 'process?f=done', act > planDone * 1.05 ? 'warn' : '')}
-      ${kpi('Steps without a cost plan', fmtN(noPlan), 'add rate or hours', 'process?f=open', noPlan ? 'warn' : '')}
-      ${kpi('In-house machine hours', fmtN(C2.filter(o => o.owner_type === 'In-house').reduce((s, o) => s + (o._hours || 0), 0), 0), 'from start / end times', 'process?f=done')}
-      ${kpi('Rejections', fmtN(C2.reduce((s, o) => s + (num(o.rejection_qty) || 0), 0)), 'debit ' + money(C2.reduce((s, o) => s + (num(o.debit_amount) || 0), 0)), 'process?f=done')}
+    const byO = {}; const row = ord => byO[ord.id] ??= { o: ord, n: 0, d: 0, p: 0, a: 0, pd: 0, rp: 0, ra: 0, rpr: 0 };
+    for (const o of C2) { const ord = orderById(o.order_id); if (!ord) continue; const x = row(ord); x.n++; if (o.status === 'Done') x.d++; x.p += o.plan_cost || 0; if (o.status === 'Done' && o.actual_cost != null) { x.a += o.actual_cost; x.pd += o.plan_cost || 0; } }
+    for (const p of parts) { const ord = orderById(p.order_id); if (!ord) continue; const x = row(ord); x.rp += p.planned_cost || 0; if (p.actual_cost != null) { x.ra += p.actual_cost; x.rpr += p.planned_cost || 0; } }
+    const rows = Object.values(byO).sort((a, b) => (b.p + b.rp) - (a.p + a.rp));
+    const pct = (a, p) => p ? `${a > p ? '+' : ''}${fmtN((a - p) / p * 100, 1)}%` : '—';
+    html = `${top}<div class="mk">
+      ${K('RM cost vs plan', pct(rmA, rmPr), `actual ${moneyShort(rmA)} · plan ${moneyShort(rmP)}`, 'tab:mat', rmA > rmPr * 1.05 ? 't-red' : 't-green')}
+      ${K('Process cost vs plan', pct(act, planDone), `actual ${moneyShort(act)} on ${fmtN(done.length)} done steps`, 'process?f=done', act > planDone * 1.05 ? 't-red' : 't-green')}
+      ${K('Planned process cost', moneyShort(planAll), `${fmtN(C2.length)} steps · ${pname}`, 'process', 't-brand')}
+      ${K('Steps without a cost plan', fmtN(noPlan), 'add rate or hours', 'process?f=open', noPlan ? 't-amber' : '')}
+      ${K('Rejection debits', moneyShort(debit), 'recovered from suppliers', 'tab:qa', 't-purple')}
+      ${K('Total variance', `${tv > 0 ? '+' : ''}${moneyShort(tv)}`, tp ? `${pct(tp + tv, tp)} on received / done` : 'nothing received yet', 'tab:cost', tv > 0 ? 't-red' : 't-green')}
     </div>
     ${inhouseRatePanel(C2)}
-    <div class="grid2">
-      <section class="panel"><header><h3>Cost by process</h3><p>plan vs actual (completed steps)</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_pp"></canvas></div></div></section>
-      <section class="panel"><header><h3>In-house vs outside</h3><p>share of process cost</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_io"></canvas></div></div></section>
+    <div class="g3">
+      ${card('Cost ledger', `Currency: ${esc(S.settings.currency || '')}`, `
+        <div class="lg"><span>Planned raw material</span><b>${money(round(rmP))}</b></div>
+        <div class="lg"><span>Actual raw material (received)</span><b>${money(round(rmA))}</b></div>
+        <div class="lg"><span>Planned process cost</span><b class="t-sky">${money(round(planAll))}</b></div>
+        <div class="lg"><span>Actual process cost (done)</span><b class="t-sky">${money(round(act))}</b></div>
+        <div class="lg"><span>Rejection debits</span><b class="t-red">${money(round(debit))}</b></div>
+        <div class="lg tot"><span>Variance vs plan</span><b>${tv > 0 ? '+' : ''}${money(round(tv))}</b></div>`, 't-green')}
+      ${card('Cost by process', 'plan vs actual, completed steps', chart('c_pp', 280), 't-muted')}
+      ${card('In-house vs outside', 'share of process cost', chart('c_io', 280), 't-muted')}
     </div>
-    <section class="panel"><header><h3>Plan vs actual by order</h3></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Order</th><th class="r">Steps</th><th>Done</th><th class="r">Planned</th><th class="r">Actual (done)</th><th>Variance</th></tr></thead><tbody>${rows.slice(0, S.ui.dash_all ? 80 : 10).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td class="r num" data-label="Steps">${fmtN(x.n)}</td><td data-label="Done"><div class="pcell">${pbar(x.n ? Math.round(x.d / x.n * 100) : 0)}</div></td><td class="r num" data-label="Planned">${money(x.p)}</td><td class="r num" data-label="Actual">${money(x.a)}</td><td data-label="Variance">${varChip(x.pd, x.pd ? x.a : null)}</td></tr>`).join('') || '<tr><td class="muted">No process plans in this period.</td></tr>'}</tbody></table></div>${moreBtn(rows.length)}</div></section>`;
+    <section class="panel"><header><h3>Plan vs actual by order</h3><p>RM + process · variance on received parts and completed steps</p></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Order</th><th>Steps done</th><th class="r">RM plan</th><th class="r">RM actual</th><th class="r">Process plan</th><th class="r">Process actual</th><th>Variance</th></tr></thead><tbody>${rows.slice(0, S.ui.dash_all ? 80 : 10).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td data-label="Done"><div class="pcell">${pbar(x.n ? Math.round(x.d / x.n * 100) : 0)}</div></td><td class="r num" data-label="RM plan">${money(x.rp)}</td><td class="r num" data-label="RM actual">${money(x.ra)}</td><td class="r num" data-label="Process plan">${money(x.p)}</td><td class="r num" data-label="Process actual">${money(x.a)}</td><td data-label="Variance">${varChip(x.pd + x.rpr, x.pd + x.rpr ? x.a + x.ra : null)}</td></tr>`).join('') || '<tr><td class="muted">No cost plans in this period.</td></tr>'}</tbody></table></div>${moreBtn(rows.length)}</div></section>`;
     after = () => {
       after0(); const c = C();
-      mkChart('c_pp', { type: 'bar', data: { labels: pk.map(short), datasets: [{ label: 'Plan (done)', data: pk.map(k => Math.round(byP[k].pd)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Actual', data: pk.map(k => Math.round(byP[k].a)), backgroundColor: c.amber, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
+      mkChart('c_pp', { type: 'bar', data: { labels: pk.map(short), datasets: [{ label: 'Plan (done)', data: pk.map(k => Math.round(byP[k].pd)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Actual', data: pk.map(k => Math.round(byP[k].a)), backgroundColor: c.brand, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
       const inh = C2.filter(o => o.owner_type !== 'Supplier').reduce((s, o) => s + (o.actual_cost ?? o.plan_cost ?? 0), 0), out = C2.filter(o => o.owner_type === 'Supplier').reduce((s, o) => s + (o.actual_cost ?? o.plan_cost ?? 0), 0);
-      mkChart('c_io', { type: 'doughnut', data: { labels: ['In-house', 'Outside suppliers'], datasets: [{ data: [Math.round(inh), Math.round(out)], backgroundColor: [c.steel, c.amber], borderWidth: 0 }] }, legend: true });
-      $$('[data-order]').forEach(el => el.onclick = () => go('order?id=' + el.dataset.order));
+      mkChart('c_io', { type: 'doughnut', data: { labels: ['In-house', 'Outside suppliers'], datasets: [{ data: [Math.round(inh), Math.round(out)], backgroundColor: [c.steel, c.brand], borderWidth: 0 }] }, legend: true });
     };
   }
 
-  if (tab === 'cust') {
+  if (tab === 'deliv') {
     const all = S.data.orders || [];
     const del = all.filter(o => o.delivered_date && o.delivery_date && inR(o.delivered_date, R));
     const ontime = del.filter(o => o.delivered_date <= o.delivery_date).length;
@@ -1696,51 +2136,99 @@ function viewDashboard() {
     const months = {}; for (const o of del) { const k = o.delivered_date.slice(0, 7); months[k] ??= { n: 0, ot: 0 }; months[k].n++; if (o.delivered_date <= o.delivery_date) months[k].ot++; }
     const mk = Object.keys(months).sort().slice(-12);
     const recvT = inv.reduce((s, o) => s + computeRow('orders', o).outstanding, 0), over = inv.filter(o => due(o) < t).reduce((s, o) => s + computeRow('orders', o).outstanding, 0);
-    html = `${top}<div class="kpis wide">
-      ${kpi('On-time delivery rate', del.length ? fmtN(ontime / del.length * 100, 0) + '%' : '—', `${ontime} of ${del.length} orders on time`, 'orders?f=done', del.length && ontime / del.length < .9 ? 'warn' : '')}
-      ${kpi('Avg delay when late', del.length - ontime ? fmtN(Object.values(byC).reduce((s, x) => s + x.late, 0) / (del.length - ontime), 1) + ' d' : '—', 'days past committed date', 'orders?f=done')}
-      ${kpi('Receivables', moneyShort(recvT), `${inv.length} invoices open`, 'accounts')}
-      ${kpi('Overdue receivables', moneyShort(over), 'past credit period', 'accounts', over ? 'warn' : '')}
-      ${kpi('Delivered, not invoiced', fmtN(all.filter(o => o.status === 'Delivered' && !o.invoice_amount).length), 'raise invoices', 'accounts')}
+    const pay = (S.data.operations || []).reduce((s, o) => s + opPayable(o), 0) + (S.data.grns || []).reduce((s, g) => s + grnPayable(g), 0);
+    html = `${top}<div class="mk">
+      ${K('On-time delivery', del.length ? fmtN(ontime / del.length * 100, 0) + '%' : '—', `${ontime} of ${del.length} orders on time`, 'orders?f=done', del.length && ontime / del.length < .9 ? 't-red' : 't-green')}
+      ${K('Avg delay when late', del.length - ontime ? fmtN(Object.values(byC).reduce((s, x) => s + x.late, 0) / (del.length - ontime), 1) + ' d' : '—', 'days past committed date', 'orders?f=done', 't-amber')}
+      ${K('Receivables', moneyShort(recvT), `${inv.length} invoices open`, 'accounts', 't-brand')}
+      ${K('Overdue receivables', moneyShort(over), 'past credit period', 'accounts', over ? 't-red' : '')}
+      ${K('Delivered, not invoiced', fmtN(all.filter(o => o.status === 'Delivered' && !o.invoice_amount).length), 'raise invoices', 'accounts', 't-amber')}
+      ${K('Payables', moneyShort(pay), 'to suppliers', 'accounts?tab=pay', 't-sky')}
     </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>On-time delivery by month</h3><p>% of orders delivered by the committed date</p></header><div class="body"><div class="chartbox"><canvas id="c_otd"></canvas></div></div></section>
-      <section class="panel"><header><h3>Receivables ageing</h3><p>days past due date</p></header><div class="body"><div class="chartbox"><canvas id="c_rag"></canvas></div></div></section>
+    <div class="g3">
+      ${card('On-time delivery by month', '% delivered by committed date', chart('c_otd', 250), 't-muted')}
+      ${card('Receivables ageing', 'days past due date', chart('c_rag', 250), 't-muted')}
+      ${card('Orders received', 'by month · parts planned', chart('c_ord', 250), 't-muted')}
     </div>
     <section class="panel"><header><h3>By customer</h3></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Customer</th><th class="r">Delivered</th><th>On time</th><th class="r">Receivable</th></tr></thead><tbody>${uniq([...Object.keys(byC), ...inv.map(o => o.customer || '—')]).map(k => { const x = byC[k] || { n: 0, ot: 0 }; const r = inv.filter(o => (o.customer || '—') === k).reduce((s, o) => s + computeRow('orders', o).outstanding, 0); const p = x.n ? Math.round(x.ot / x.n * 100) : null; return `<tr><td class="first" data-label="Customer"><span class="t">${esc(k)}</span></td><td class="r num" data-label="Delivered">${fmtN(x.n)}</td><td data-label="On time">${p == null ? '—' : `<span class="chip ${p >= 90 ? 'green' : p >= 75 ? 'amber' : 'red'}">${p}%</span>`}</td><td class="r num" data-label="Receivable">${money(r)}</td></tr>`; }).join('') || '<tr><td class="muted">Record delivered dates and invoices on orders to see this.</td></tr>'}</tbody></table></div></div></section>`;
     after = () => {
       after0(); const c = C();
-      mkChart('c_otd', { type: 'line', data: { labels: mk.map(k => MONTHS[+k.slice(5) - 1] + ' ' + k.slice(2, 4)), datasets: [{ data: mk.map(k => Math.round(months[k].ot / months[k].n * 100)), borderColor: c.steel, backgroundColor: c.steel, tension: .3, pointRadius: 4 }] }, options: { scales: { y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
+      mkChart('c_otd', { type: 'line', data: { labels: mk.map(lab), datasets: [{ data: mk.map(k => Math.round(months[k].ot / months[k].n * 100)), borderColor: c.steel, backgroundColor: c.steel, tension: .3, pointRadius: 4 }] }, options: { scales: { y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
       mkChart('c_rag', { type: 'bar', data: { labels: B.map(b => b[0]), datasets: [{ data: ag.map(Math.round), backgroundColor: [c.green, c.amber, c.amber, c.red, c.red], borderRadius: 4 }] }, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
+      const OM = {}; for (const o of S.data.orders || []) { if (!inR(o.order_date, R)) continue; const k = o.order_date.slice(0, 7); OM[k] ??= { o: 0, p: 0 }; OM[k].o++; OM[k].p += partsOfOrder(o).length; }
+      const ok = Object.keys(OM).sort().slice(-18);
+      mkChart('c_ord', { data: { labels: ok.map(lab), datasets: [{ type: 'bar', label: 'Orders', data: ok.map(k => OM[k].o), backgroundColor: c.steel, borderRadius: 3, yAxisID: 'y' }, { type: 'line', label: 'Parts', data: ok.map(k => OM[k].p), borderColor: c.brand, backgroundColor: c.brand, tension: .3, pointRadius: 3, yAxisID: 'y1' }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } }, y1: { position: 'right', beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } } });
     };
   }
-
-  if (tab === 'sup') {
-    const dn = (S.data.operations || []).filter(o => o.owner_type === 'Supplier' && o.status === 'Done' && o.target_date && o.done_date && inR(o.done_date, R));
-    const byS = {}; for (const o of dn) { const k = o.supplier || '—'; byS[k] ??= { n: 0, ot: 0 }; byS[k].n++; if (o.done_date <= o.target_date) byS[k].ot++; }
-    const po = (S.data.grns || []).filter(g => inR(g.grn_date, R)); for (const g of po) { const p = poById(g.po_id); if (!p?.expected_date) continue; const k = g.supplier || '—'; byS[k] ??= { n: 0, ot: 0 }; byS[k].n++; if (g.grn_date <= p.expected_date) byS[k].ot++; }
-    const sk = Object.keys(byS).sort((a, b) => byS[b].n - byS[a].n).slice(0, 12);
-    const pay = {}; for (const o of S.data.operations || []) { const v = opPayable(o); if (v) pay[o.supplier] = (pay[o.supplier] || 0) + v; } for (const g of S.data.grns || []) { const v = grnPayable(g); if (v) pay[g.supplier] = (pay[g.supplier] || 0) + v; }
-    const tot = Object.values(byS).reduce((s, x) => s + x.n, 0), ot = Object.values(byS).reduce((s, x) => s + x.ot, 0);
-    const payT = Object.values(pay).reduce((s, v) => s + v, 0);
-    html = `${top}<div class="kpis wide">
-      ${kpi('Supplier on-time rate', tot ? fmtN(ot / tot * 100, 0) + '%' : '—', `${ot} of ${tot} deliveries on time`, 'process?f=done', tot && ot / tot < .85 ? 'warn' : '')}
-      ${kpi('At suppliers now', fmtN((S.data.operations || []).filter(o => o.owner_type === 'Supplier' && o.status !== 'Done' && o.status !== 'Planned' && (o.order_id ? !ORDER_DONE.has(orderById(o.order_id)?.status) : true)).length), 'process steps', 'process?f=open')}
-      ${kpi('Payables', moneyShort(payT), `${Object.keys(pay).length} suppliers`, 'accounts?tab=pay')}
-      ${kpi('Rejections by suppliers', fmtN(dn.reduce((s, o) => s + (num(o.rejection_qty) || 0), 0)), 'parts in period', 'process?f=done')}
-    </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>Supplier on-time rate</h3><p>process returns and RM deliveries</p></header><div class="body"><div class="chartbox" style="height:320px"><canvas id="c_sot"></canvas></div></div></section>
-      <section class="panel"><header><h3>Payables by supplier</h3></header><div class="body"><div class="chartbox" style="height:320px"><canvas id="c_pay"></canvas></div></div></section>
-    </div>`;
-    after = () => {
-      after0(); const c = C(); const pk = Object.keys(pay).sort((a, b) => pay[b] - pay[a]).slice(0, 10);
-      mkChart('c_sot', { type: 'bar', data: { labels: sk.map(short), datasets: [{ data: sk.map(k => Math.round(byS[k].ot / byS[k].n * 100)), backgroundColor: sk.map(k => byS[k].ot / byS[k].n >= .9 ? c.green : byS[k].ot / byS[k].n >= .75 ? c.amber : c.red), borderRadius: 3 }] }, options: { indexAxis: 'y', scales: { x: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: c.line } }, y: { grid: { display: false } } } } });
-      mkChart('c_pay', { type: 'bar', data: { labels: pk.map(short), datasets: [{ data: pk.map(k => Math.round(pay[k])), backgroundColor: c.amber, borderRadius: 3 }] }, options: { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, y: { grid: { display: false } } } } });
-    };
-  }
-  return { title: 'Dashboard', sub: `${S.settings.company_name || 'Overview'} · ${fmtD(today())}`, html, after };
+  const tname = DTABS.find(d => d[0] === tab)[1].replace(/^\d+\.\s*/, '');
+  return { title: 'Dashboards', sub: `${tname} · ${S.settings.company_name || 'Overview'} · ${fmtD(today())}`, html, after };
 }
+const oIdsOpen = o => !ORDER_DONE.has(orderById(o.order_id)?.status);
+
+/* ================= shop-floor actions: outward, inward, quality gate ================= */
+const FLOOR = {
+  part() { if (!canEdit()) return toast('Only admins and editors can add parts.'); openRecord('parts', {}); },
+  exp() { exportMatrix(); },
+  out() { floorDialog('out'); }, in() { floorDialog('in'); }, qc() { floorDialog('qc'); },
+};
+function floorDialog(kind) {
+  const all = (S.data.operations || []).filter(canUpdateOp);
+  const cut30 = addDays(today(), -30);
+  const list = kind === 'out' ? all.filter(o => liveOp(o) && o.owner_type === 'Supplier' && ['Planned', 'Assigned', 'On hold'].includes(o.status))
+    : kind === 'in' ? all.filter(o => liveOp(o) && (o.status === 'At supplier' || (o.owner_type === 'Supplier' && o.status === 'In progress')))
+      : all.filter(o => o.status === 'Done' && (o.done_date || '') >= cut30 && (!o.inspection || S._qcAll));
+  list.sort((a, b) => kind === 'qc' ? (b.done_date || '').localeCompare(a.done_date || '') : (a.target_date || '9').localeCompare(b.target_date || '9'));
+  const M = {
+    out: { t: 'Send for process (outward)', d: 'Tick the parts leaving for a supplier today. Their steps move to “At supplier” and the clock starts. You can WhatsApp an outward note to each supplier after.', ic: ICON.truck, c: 'sky', btn: 'Mark as sent', dl: 'Sent on', none: 'No supplier steps are waiting to be sent. Plan the route (Process plan) first.' },
+    in: { t: 'Receive part (inward)', d: 'Tick the parts that came back. Their steps are marked done, the planner and the next owner are told. Record the inspection result and any rejected qty now, or later in the quality gate.', ic: ICON.pkg, c: 'green', btn: 'Receive', dl: 'Received on', none: 'Nothing is outside at a supplier right now.' },
+    qc: { t: 'Inspect part (quality gate)', d: 'Record the inspection result, rejected qty and any debit charged back, for steps completed in the last 30 days.', ic: ICON.shield, c: 'purple', btn: 'Save inspection', dl: '', none: 'No completed steps are waiting for inspection.' },
+  }[kind];
+  const inspOpts = uniq(['OK', 'Rework', 'Not OK', ...mvals('inspection')]);
+  const prevOpen = o => { const p = partById(o.part_id); return p ? opsOfPart(p).filter(x => (num(x.seq) ?? 0) < (num(o.seq) ?? 0) && x.status !== 'Done') : []; };
+  const row = (o, i) => { const pv = kind === 'out' ? prevOpen(o) : []; return `<tr data-row="${i}"><td><input type="checkbox" data-ck="${i}" aria-label="Select ${esc(o.drawing_no)}"></td>
+    <td><b class="mono" style="color:var(--brand-text)">${esc(o.drawing_no)}</b><small>${esc(o.part_name || '')}${orderById(o.order_id) ? ' · ' + esc(orderById(o.order_id).order_no) : ''}</small>${pv.length ? `<small class="t-amber">Waiting for step ${esc(pv.map(x => (x.seq ?? '') + ' ' + (x.process || '')).join(', '))}</small>` : ''}</td>
+    <td>${esc(o.process || '')}<small>${esc(ownerName(o))}</small></td><td class="mono">${fmtN(o.qty)}</td>
+    <td class="mono">${kind === 'qc' ? fmtD(o.done_date) : kind === 'in' ? `${fmtD(o.sent_date || o.start_date)}<small>${o.sent_date ? daysBetween(o.sent_date, today()) + ' d out' : ''}</small>` : fmtD(o.target_date)}</td>
+    ${kind === 'out' ? '' : `<td><select class="cell" data-insp="${i}"><option value="">—</option>${inspOpts.map(v => `<option ${v === (o.inspection || '') ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></td><td><input class="cell num" type="number" min="0" step="any" data-rej="${i}" value="${esc(o.rejection_qty ?? '')}" placeholder="0" style="max-width:80px"></td>`}
+    ${kind === 'qc' ? `<td><input class="cell num" type="number" min="0" step="any" data-deb="${i}" value="${esc(o.debit_amount ?? '')}" placeholder="0" style="max-width:96px"></td>` : ''}</tr>`; };
+  const head = `<tr><th><input type="checkbox" data-ckall aria-label="Select all"></th><th>Part</th><th>Process · owner</th><th>Qty</th><th>${kind === 'qc' ? 'Done' : kind === 'in' ? 'Sent' : 'Target'}</th>${kind === 'out' ? '' : '<th>Inspection</th><th>Rejected</th>'}${kind === 'qc' ? '<th>Debit</th>' : ''}</tr>`;
+  const m = openModal(`<div class="mhead"><div class="ic" style="background:var(--${M.c === 'sky' ? 'steel-2' : M.c + '-bg'});color:var(--${M.c === 'sky' ? 'steel' : M.c})">${M.ic}</div><h2>${M.t}</h2></div><p class="muted" style="margin:6px 0 0;font-size:13px">${M.d}</p>
+    <div class="row" style="margin-top:12px">${M.dl ? `<div class="field" style="flex:none"><label for="fdate">${M.dl}</label><input id="fdate" type="date" value="${today()}" max="${today()}"></div>` : ''}<div class="field" style="flex:1;min-width:200px"><label for="fq">Find</label><input id="fq" placeholder="Drawing no., part, supplier, process…"></div>${kind === 'qc' ? `<label class="switch" style="align-self:flex-end;margin-bottom:8px"><input type="checkbox" id="qcall" ${S._qcAll ? 'checked' : ''}> Include already inspected</label>` : ''}</div>
+    ${list.length ? `<div class="pick"><table><thead>${head}</thead><tbody>${list.slice(0, 400).map(row).join('')}</tbody></table></div>` : `<div class="empty" style="padding:26px 10px">${esc(M.none)}</div>`}
+    <div class="row" style="margin-top:14px"><span class="muted" id="fsel" style="font-size:12.5px">0 selected</span><span class="spacer"></span><button class="btn" id="fx">Cancel</button>${list.length ? `<button class="btn pri" id="fgo">${M.btn}</button>` : ''}</div>`);
+  m.classList.add('wide');
+  const upd = () => { $('#fsel', m).textContent = `${$$('[data-ck]:checked', m).length} selected`; };
+  $('#fx', m).onclick = closeOverlay;
+  $('#qcall', m)?.addEventListener('change', e => { S._qcAll = e.target.checked; floorDialog('qc'); });
+  $('#fq', m).addEventListener('input', e => { const q = norm(e.target.value); $$('[data-row]', m).forEach(tr => { const o = list[+tr.dataset.row]; tr.style.display = !q || [o.drawing_no, o.part_name, o.process, ownerName(o), orderById(o.order_id)?.order_no].some(v => norm(v).includes(q)) ? '' : 'none'; }); });
+  $('[data-ckall]', m)?.addEventListener('change', e => { $$('[data-ck]', m).forEach(c => { if (c.closest('tr').style.display !== 'none') c.checked = e.target.checked; }); upd(); });
+  m.addEventListener('change', e => { if (e.target.matches('[data-ck]')) upd(); if (e.target.matches('[data-insp],[data-rej],[data-deb]')) { const c = $(`[data-ck="${e.target.closest('tr').dataset.row}"]`, m); if (c && !c.checked) { c.checked = true; upd(); } } });
+  $('#fgo', m)?.addEventListener('click', async ev => {
+    const idx = $$('[data-ck]:checked', m).map(c => +c.dataset.ck); if (!idx.length) return toast('Tick at least one part.');
+    const d = $('#fdate', m)?.value || today(); if (d > today()) return toast('The date can’t be in the future.');
+    const vals = idx.map(i => ({ op: list[i], insp: $(`[data-insp="${i}"]`, m)?.value || '', rej: num($(`[data-rej="${i}"]`, m)?.value), deb: num($(`[data-deb="${i}"]`, m)?.value) }));
+    ev.target.disabled = true; ev.target.textContent = 'Saving…';
+    S._quiet = true; let ok = 0, err = null; const sentBy = {};
+    for (const { op, insp, rej, deb } of vals) {
+      const before = { ...op };
+      const patch = kind === 'out' ? { status: 'At supplier', sent_date: d, progress: Math.max(10, num(op.progress) || 0), alert_state: null, hold_reason: null }
+        : kind === 'in' ? { status: 'Done', done_date: d, progress: 100, alert_state: null, ...(insp ? { inspection: insp } : {}), ...(rej != null ? { rejection_qty: rej } : {}) }
+          : { inspection: insp || null, rejection_qty: rej, debit_amount: deb };
+      try {
+        const saved = await DB.update('operations', op.id, patch);
+        await logActivity(kind === 'qc' ? 'inspected' : 'updated', 'operations', saved, `${saved.drawing_no} ${saved.process || ''} → ${kind === 'qc' ? (saved.inspection || 'inspected') + (rej ? `, ${rej} rejected` : '') : saved.status}`);
+        if (kind !== 'qc') await afterOpSave(saved, before);
+        if (kind === 'out') (sentBy[saved.supplier || '—'] ??= []).push(saved);
+        ok++;
+      } catch (e) { err = err || e; }
+    }
+    S._quiet = false; closeOverlay(); render();
+    if (err) fail(err, `${ok} saved, then an error`);
+    const acts = kind === 'out' ? Object.entries(sentBy).map(([sup, recs]) => { const sp = supplierByName(sup); return sp?.phone ? { label: `Outward note → ${sup}`, href: waLink(sp.phone, `Outward note ${fmtD(d)}${S.settings.company_name ? ' — ' + S.settings.company_name : ''}\n` + recs.map(r => `• ${r.drawing_no} ${r.part_name || ''} — ${r.process || ''}, qty ${fmtN(r.qty)}${r.target_date ? ', required by ' + fmtD(r.target_date) : ''}`).join('\n') + '\nPlease confirm receipt.'), wa: 1 } : null; }).filter(Boolean).slice(0, 4) : [];
+    if (ok) toast(kind === 'out' ? `${ok} step${ok > 1 ? 's' : ''} marked as sent to supplier.` : kind === 'in' ? `${ok} part${ok > 1 ? 's' : ''} received. Planners and next owners were notified in the app.` : `Inspection saved for ${ok} step${ok > 1 ? 's' : ''}.`, acts, acts.length ? 15000 : 5000);
+  });
+}
+
 function moreBtn(n) { return n > 10 ? `<div class="more">${S.ui.dash_all ? '' : `Top 10 of ${fmtN(n)}`}<button class="btn sm" data-dall>${S.ui.dash_all ? 'Show fewer' : 'Show all'}</button></div>` : ''; }
 document.addEventListener('click', e => { if (e.target.closest('[data-dall]')) { S.ui.dash_all = !S.ui.dash_all; saveUI(); S._keepScroll = true; render(); } });
 function inhouseRatePanel(C2) {
@@ -1762,7 +2250,7 @@ function orderBoard(list) {
 }
 function dueList() {
   const t = today(), lim = addDays(t, 7);
-  const ops = (S.data.operations || []).filter(o => o.status !== 'Done' && o.target_date && o.target_date <= lim && o.target_date >= addDays(t, -30)).sort((a, b) => a.target_date.localeCompare(b.target_date)).slice(0, 12);
+  const ops = (S.data.operations || []).filter(o => liveOp(o) && o.target_date && o.target_date <= lim && o.target_date >= addDays(t, -30)).sort((a, b) => a.target_date.localeCompare(b.target_date)).slice(0, 12);
   if (!ops.length) return '<div class="muted">Nothing due this week.</div>';
   return `<ul class="duel">${ops.map(o => `<li data-dueop="${o.id}"><span class="lampdot ${opLight(o)}"></span><div><b>${esc(o.drawing_no)} · ${esc(o.process || '')}</b><small>${esc(ownerName(o))} · ${esc(o.status)}</small></div><time class="num">${fmtD(o.target_date)}</time></li>`).join('')}</ul>`;
 }
@@ -1950,7 +2438,7 @@ function viewSuppliers() {
     { key: 'open', label: 'Open', cls: 'r num', val: s => st(s).open, html: s => st(s).open ? `<span class="chip ${st(s).late ? 'red' : 'amber'}">${st(s).open}</span>` : '0' },
     { key: 'ot', label: 'On time', cls: 'r num', hideM: 1, val: s => st(s).dn ? st(s).ot / st(s).dn : -1, html: s => st(s).dn ? `${Math.round(st(s).ot / st(s).dn * 100)}%` : '—' },
     { key: 'pay', label: 'Payable', cls: 'r num', hideM: 1, val: s => st(s).pay, html: s => st(s).pay ? moneyShort(st(s).pay) : '—' },
-    { key: 'acts', label: '', cls: 'acts', html: s => `<div class="row" style="flex-wrap:nowrap">${s.phone ? `<a class="btn sm wa" target="_blank" rel="noopener" href="${esc(waLink(s.phone, `Hello ${titleCase(s.contact_person || '')},`))}" aria-label="WhatsApp">${ICON.wa}</a><a class="btn sm" href="tel:${esc(waNumber(s.phone))}">Call</a>` : ''}${s.location_url ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(s.location_url)}">Map</a>` : ''}</div>` },
+    { key: 'acts', label: '', cls: 'acts', html: s => `<div class="row" style="flex-wrap:nowrap">${s.phone ? `<a class="btn sm wa" target="_blank" rel="noopener" href="${esc(waLink(s.phone, `Hello ${titleCase(s.contact_person || '')},`))}" aria-label="WhatsApp">${ICON.wa}</a><a class="btn sm" href="tel:${esc(waNumber(s.phone))}">Call</a>` : ''}${safeUrl(s.location_url) ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(safeUrl(s.location_url))}">Map</a>` : ''}</div>` },
   ];
   const html = `<p class="lede">Raw-material suppliers and outside machine shops. On-time rate and payables are worked out from process steps and GRNs.</p>
   <div class="toolbar">${searchBox('sup', 'Search suppliers…')}<span class="spacer"></span>${expBtn('data-exp')}${addBtn('New supplier', 'data-new')}</div>
@@ -2760,7 +3248,7 @@ async function buildWorkflowFromLegacy(P, closedSet, log) {
   const fix = (S.data.parts || []).filter(p => !p.order_id && orderOf(p.project)).map(p => ({ id: p.id, order_id: orderOf(p.project).id }));
   if (fix.length) await DB.patchMany('parts', fix);
   const haveP = new Set((S.data.parts || []).map(p => norm(p.drawing_no) + '|' + (p.order_id || '')));
-  const newP = (P.parts || []).map(p => { const o = orderOf(p.project); const { rm_status, customer, planned_weight, planned_cost, actual_cost, ...r } = p; return { ...r, project: clean(p.project), grade: clean(p.grade)?.toUpperCase() || null, order_id: o?.id || null, rm_source: 'Purchase', rm_received_date: num(p.actual_weight) ? (p.order_date || null) : null }; }).filter(p => !haveP.has(norm(p.drawing_no) + '|' + (p.order_id || '')));
+  const newP = (P.parts || []).map(p => { const o = orderOf(p.project); const { rm_status, customer, ...r } = p; return { ...r, project: clean(p.project), grade: clean(p.grade)?.toUpperCase() || null, order_id: o?.id || null, rm_source: 'Purchase', rm_received_date: num(p.actual_weight) ? (p.order_date || null) : null }; }).filter(p => !haveP.has(norm(p.drawing_no) + '|' + (p.order_id || '')));
   if (newP.length) { log(`Saving ${fmtN(newP.length)} parts…`, 0); await DB.insert('parts', newP, (d, n) => log(`Saving parts: ${fmtN(d)} of ${fmtN(n)}`, d / n)); } res.parts = newP.length;
   // 7. process steps from the job-work and grinding registers
   const pref = d => { const m = /^([a-z]+-\d{3,4}-\d{1,3})-/i.exec(String(d || '').replace(/\s+/g, '')); return m ? m[1].toUpperCase() : null; };
@@ -2832,6 +3320,7 @@ create extension if not exists pgcrypto;
 
 create table if not exists app_settings (key text primary key, value jsonb, updated_at timestamptz default now());
 create table if not exists profiles (id uuid primary key references auth.users on delete cascade, email text, full_name text, role text default 'viewer', created_at timestamptz default now());
+alter table profiles alter column role set default 'none';
 create table if not exists team (id uuid primary key default gen_random_uuid(), name text not null, phone text, email text, tags text[] default '{}', wa_apikey text, notify_email boolean default true, notify_whatsapp boolean default true, active boolean default true, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists masters (id uuid primary key default gen_random_uuid(), category text not null, value text not null, extra jsonb default '{}', sort int default 0, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists suppliers (id uuid primary key default gen_random_uuid(), name text not null, contact_person text, address text, process text, phone text, email text, location_url text, credit_days numeric, gst_no text, active boolean default true, created_at timestamptz default now(), updated_at timestamptz default now());
@@ -2856,31 +3345,44 @@ create index if not exists ops_part on operations (part_id);
 create index if not exists ops_order on operations (order_id);
 create index if not exists notif_to on notifications (recipient_email, created_at desc);
 
+-- CallMeBot keys: kept out of the team table so only admins and editors can read them
+create table if not exists team_secrets (team_id uuid primary key references team(id) on delete cascade, wa_apikey text, updated_at timestamptz default now());
+insert into team_secrets (team_id, wa_apikey) select id, wa_apikey from team where coalesce(wa_apikey, '') <> ''
+  on conflict (team_id) do update set wa_apikey = excluded.wa_apikey, updated_at = now();
+update team set wa_apikey = null where wa_apikey is not null;
+
+-- document numbers must be unique (two people saving at the same moment). Skipped with a notice if duplicates already exist.
+do $$ begin
+  begin execute 'create unique index if not exists orders_no_uq on orders (order_no) where order_no is not null'; exception when others then raise notice 'orders_no_uq skipped: duplicate order numbers exist'; end;
+  begin execute 'create unique index if not exists po_no_uq on purchase_orders (po_no) where po_no is not null'; exception when others then raise notice 'po_no_uq skipped: duplicate PO numbers exist'; end;
+  begin execute 'create unique index if not exists grn_no_uq on grns (grn_no) where grn_no is not null'; exception when others then raise notice 'grn_no_uq skipped: duplicate GRN numbers exist'; end;
+end $$;
+
 -- role of the signed-in person: admin | editor | member | viewer
 create or replace function app_role() returns text language sql stable security definer set search_path = public as
 $$ select coalesce((select role from profiles where id = auth.uid()), 'none') $$;
 create or replace function my_team_id() returns uuid language sql stable security definer set search_path = public as
 $$ select id from team where lower(email) = lower(auth.jwt()->>'email') limit 1 $$;
 
--- first person to sign up becomes admin, everyone after starts as viewer
+-- first person to sign up becomes admin; everyone after waits with no access ('none') until an admin gives them a role
 create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
 begin
   insert into profiles (id, email, full_name, role)
   values (new.id, lower(new.email), coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
           case when (select count(*) from profiles) = 0 then 'admin'
-               else coalesce((select value #>> '{}' from app_settings where key = 'default_role' and value #>> '{}' in ('editor','member','viewer')), 'member') end)
+               else coalesce((select value #>> '{}' from app_settings where key = 'default_role' and value #>> '{}' in ('none','editor','member','viewer')), 'none') end)
   on conflict (id) do nothing;
   return new;
 end $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute function handle_new_user();
 insert into profiles (id, email, full_name, role)
-  select u.id, lower(u.email), split_part(u.email, '@', 1), case when row_number() over (order by u.created_at) = 1 and not exists (select 1 from profiles) then 'admin' else 'viewer' end
+  select u.id, lower(u.email), split_part(u.email, '@', 1), case when row_number() over (order by u.created_at) = 1 and not exists (select 1 from profiles) then 'admin' else 'none' end
   from auth.users u on conflict (id) do nothing;
 
 -- row level security
 do $$ declare t text; begin
-  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks','notifications','activity','app_settings','profiles'] loop
+  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks','notifications','activity','app_settings','profiles','team_secrets'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "read" on %I', t);
     execute format('drop policy if exists "write" on %I', t);
@@ -2889,9 +3391,21 @@ do $$ declare t text; begin
   foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks'] loop
     execute format('create policy "write" on %I for all to authenticated using (app_role() in (''admin'',''editor'')) with check (app_role() in (''admin'',''editor''))', t);
   end loop;
-  foreach t in array array['notifications','activity'] loop
-    execute format('create policy "write" on %I for all to authenticated using (app_role() <> ''none'') with check (app_role() <> ''none'')', t);
-  end loop;
+  -- CallMeBot keys: admins and editors only (replaces the general read policy)
+  execute 'drop policy if exists "read" on team_secrets';
+  execute 'create policy "write" on team_secrets for all to authenticated using (app_role() in (''admin'',''editor'')) with check (app_role() in (''admin'',''editor''))';
+  -- notifications: anyone with access may send; each person reads and marks only their own
+  execute 'drop policy if exists "read" on notifications';
+  execute 'drop policy if exists "mine" on notifications';
+  execute 'drop policy if exists "tidy" on notifications';
+  execute 'create policy "read" on notifications for select to authenticated using (lower(recipient_email) = lower(auth.jwt()->>''email''))';
+  execute 'create policy "write" on notifications for insert to authenticated with check (app_role() <> ''none'')';
+  execute 'create policy "mine" on notifications for update to authenticated using (lower(recipient_email) = lower(auth.jwt()->>''email'')) with check (lower(recipient_email) = lower(auth.jwt()->>''email''))';
+  execute 'create policy "tidy" on notifications for delete to authenticated using (lower(recipient_email) = lower(auth.jwt()->>''email''))';
+  -- activity log: everyone with access reads and adds; only admins delete
+  execute 'create policy "write" on activity for insert to authenticated with check (app_role() <> ''none'')';
+  execute 'drop policy if exists "tidy" on activity';
+  execute 'create policy "tidy" on activity for delete to authenticated using (app_role() = ''admin'')';
   execute 'create policy "write" on app_settings for all to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
   execute 'create policy "write" on profiles for update to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
 end $$;
@@ -2905,7 +3419,7 @@ create policy "brand" on app_settings for select to anon using (key in ('company
 
 -- live updates for everyone
 do $$ declare t text; begin
-  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks','notifications','app_settings'] loop
+  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks','notifications','app_settings','team_secrets'] loop
     begin execute format('alter publication supabase_realtime add table %I', t); exception when others then null; end;
   end loop;
 end $$;
@@ -2969,6 +3483,7 @@ const SETTINGS_TABS = {
       ${sField('order_warn_days', 'Order: warn before delivery (days)', s.order_warn_days, 'number', 'Orders turn amber and the project owner is notified this many days before the delivery date.')}
       ${sField('default_credit_days', 'Default credit days', s.default_credit_days, 'number', 'Used when a customer or supplier has none.')}
       ${sField('alert_lookback_days', 'Ignore unlinked records older than (days)', s.alert_lookback_days, 'number', 'Keeps old, never-closed history from flooding the alerts.')}
+      ${sField('stuck_days', 'Part is “stuck” after (days)', s.stuck_days ?? 7, 'number', 'A child part that hasn’t moved from its current location for longer than this shows as STUCK on the dashboards.')}
       </div></div></section>
       <section class="panel" style="margin-top:16px"><header><h3>Daily digest</h3></header><div class="body">
       <label class="switch"><input type="checkbox" data-set="digest_auto" ${s.digest_auto ? 'checked' : ''}> Send the digest automatically each morning</label>
@@ -3025,15 +3540,16 @@ const SETTINGS_TABS = {
   },
   access() {
     return {
-      html: `<p class="lede">Anyone with the app link can create an account; new accounts start as <b>viewer</b> until you give them a role here.</p>
-      <section class="panel"><div class="body"><dl class="kv"><dt>Admin</dt><dd>Everything, including settings, lists and roles</dd><dt>Editor</dt><dd>Add and change parts, jobs, suppliers and team; assign tasks</dd><dt>Member</dt><dd>Sees everything; updates the tasks assigned to them</dd><dt>Viewer</dt><dd>Read-only — ideal for management</dd></dl>
+      html: `<p class="lede">Anyone with the app link can create an account. ${(S.settings.default_role || 'none') === 'none' ? 'New accounts see nothing (<b>none</b>) until you give them a role here.' : `New accounts currently start as <b>${esc(S.settings.default_role)}</b> and can see your data straight away — change this in Cloud connection → “New sign-ups start as”.`} For extra safety, turn off <b>Allow new users to sign up</b> in Supabase → Authentication → Sign In / Providers and invite people from there.</p>
+      <section class="panel"><div class="body"><dl class="kv"><dt>None</dt><dd>Waiting for approval — sees no data</dd><dt>Admin</dt><dd>Everything, including settings, lists and roles</dd><dt>Editor</dt><dd>Add and change parts, jobs, suppliers and team; assign tasks</dd><dt>Member</dt><dd>Sees everything; updates the tasks assigned to them</dd><dt>Viewer</dt><dd>Read-only — ideal for management</dd></dl>
       <div class="row" style="margin-top:14px"><button class="btn" id="cp">Copy invite link</button><a class="btn wa" target="_blank" rel="noopener" href="${esc(waLink('', `Please sign up on our parts tracker: ${appLink('')}`))}">${ICON.wa}Share link on WhatsApp</a></div></div></section>
       <div style="margin-top:16px" id="profList"><div class="empty">Loading people…</div></div>`,
       async after() {
         $('#cp').onclick = () => { navigator.clipboard?.writeText(appLink('')); toast('Invite link copied.'); };
         try {
-          const { data, error } = await sb.from('profiles').select('*').order('created_at'); if (error) throw error;
-          $('#profList').innerHTML = `<div class="panel tablewrap"><table class="dt"><thead><tr><th>Person</th><th>Role</th><th>Linked team member</th></tr></thead><tbody>${data.map(p => { const t = (S.data.team || []).find(x => norm(x.email) === norm(p.email)); return `<tr><td class="first" data-label="Person"><span class="t">${esc(p.full_name || p.email)}</span><small>${esc(p.email)}</small></td><td data-label="Role"><select class="sel" data-role="${p.id}" ${p.id === S.session.user.id ? 'disabled' : ''}>${['admin', 'editor', 'member', 'viewer'].map(r => `<option ${p.role === r ? 'selected' : ''}>${r}</option>`).join('')}</select></td><td data-label="Team member">${t ? esc(t.name) : `<span class="muted">Not linked — add ${esc(p.email)} on the Team page</span>`}</td></tr>`; }).join('')}</tbody></table></div>`;
+          const { data: d0, error } = await sb.from('profiles').select('*').order('created_at'); if (error) throw error;
+          const data = [...d0.filter(p => (p.role || 'none') === 'none'), ...d0.filter(p => (p.role || 'none') !== 'none')];
+          $('#profList').innerHTML = `<div class="panel tablewrap"><table class="dt"><thead><tr><th>Person</th><th>Role</th><th>Linked team member</th></tr></thead><tbody>${data.map(p => { const t = (S.data.team || []).find(x => norm(x.email) === norm(p.email)); return `<tr><td class="first" data-label="Person"><span class="t">${esc(p.full_name || p.email)}</span>${(p.role || 'none') === 'none' ? ' <span class="chip amber">Waiting for access</span>' : ''}<small>${esc(p.email)}</small></td><td data-label="Role"><select class="sel" data-role="${p.id}" ${p.id === S.session.user.id ? 'disabled' : ''}>${['none', 'admin', 'editor', 'member', 'viewer'].map(r => `<option value="${r}" ${(p.role || 'none') === r ? 'selected' : ''}>${r === 'none' ? 'none (no access)' : r}</option>`).join('')}</select></td><td data-label="Team member">${t ? esc(t.name) : `<span class="muted">Not linked — add ${esc(p.email)} on the Team page</span>`}</td></tr>`; }).join('')}</tbody></table></div>`;
           $$('[data-role]').forEach(s => s.onchange = async () => { const { error } = await sb.from('profiles').update({ role: s.value }).eq('id', s.dataset.role); error ? fail(error) : toast('Role updated.'); });
         } catch (e) { $('#profList').innerHTML = `<div class="panel"><div class="empty">Couldn’t load people: ${esc(e.message)}</div></div>`; }
       }
@@ -3088,13 +3604,13 @@ const SETTINGS_TABS = {
       return {
         html: `<section class="panel"><header><h3>Connected</h3><span class="chip green">Live</span></header><div class="body"><dl class="kv"><dt>Database</dt><dd class="mono">${esc(S.cfg.url)}</dd><dt>Signed in as</dt><dd>${esc(S.profile?.email)} (${esc(myRole())})</dd></dl>
         <h4 style="margin:18px 0 6px">One web address for everyone</h4>${window.APP_CONFIG ? `<p style="font-size:14px;margin-top:0"><span class="chip green">Built in</span> Anyone who opens <b>${esc(appBase() || location.origin)}</b> on any device goes straight to the sign-in screen and can create an account.</p>` : `<p class="muted" style="font-size:14px;margin-top:0">Right now a new device must use the invite link below. To make the plain web address open the sign-in screen on <b>every</b> device, download this file and upload it to GitHub in place of your current <code>index.html</code>. The file contains only the database address and publishable key, which are designed to be public; your data stays protected by sign-in.</p><button class="btn pri" id="bake">${ICON.down}Download index.html for GitHub</button>`}
-        <div class="field" style="margin-top:14px;max-width:360px"><label for="drole">New sign-ups start as</label><select id="drole" class="sel">${[['member', 'Member — updates their own work'], ['editor', 'Editor — can plan and edit everything'], ['viewer', 'Viewer — can only look']].map(([v, l]) => `<option value="${v}" ${(S.settings.default_role || 'member') === v ? 'selected' : ''}>${l}</option>`).join('')}</select><div class="hint">You can change anyone’s role later in Users &amp; access.</div></div>
+        <div class="field" style="margin-top:14px;max-width:360px"><label for="drole">New sign-ups start as</label><select id="drole" class="sel" style="max-width:360px">${[['none', 'No access until I approve (recommended)'], ['member', 'Member — updates their own work'], ['editor', 'Editor — can plan and edit everything'], ['viewer', 'Viewer — can only look']].map(([v, l]) => `<option value="${v}" ${(S.settings.default_role || 'none') === v ? 'selected' : ''}>${l}</option>`).join('')}</select><div class="hint">Anyone who finds the app address can sign up, so “no access” keeps strangers out. Give each person a role in Users &amp; access.</div></div>
         <h4 style="margin:18px 0 6px">Invite your team</h4>${appLink('') ? `<p class="muted" style="font-size:14px;margin-top:0">Anyone who opens this link on a phone, tablet or computer is connected automatically and can sign up. Nobody pastes keys or edits any file.</p><div class="field"><input id="inv" readonly value="${esc(appLink(''))}" onclick="this.select()"></div><div class="row" style="margin-top:10px"><button class="btn pri" id="ci">Copy invite link</button><a class="btn wa" target="_blank" rel="noopener" href="${esc(waLink('', `Please join our parts tracker (tap to open, then create your account): ${appLink('')}`))}">${ICON.wa}Share on WhatsApp</a></div>` : `<p class="muted" style="font-size:14px;margin-top:0">You opened the app straight from a file, so it has no web address yet. Upload the file to your website or a free host, open it from there, connect, and your invite link will appear here. Or type the web address in <a href="#/settings?tab=company">Company &amp; look → App web address</a>.</p>`}
         ${localCount ? `<h4 style="margin:18px 0 6px">Trial data on this device</h4><p class="muted" style="font-size:14px;margin-top:0">${fmtN(localCount)} records from your trial are still in this browser.</p><button class="btn" id="mv">${ICON.up}Copy trial data into the cloud</button>` : ''}
         <h4 style="margin:18px 0 6px">Database setup script</h4><p class="muted" style="font-size:14px;margin-top:0">Run again after app updates — it only adds what’s missing.</p><button class="btn" id="cs">Copy setup script</button>
-        <p style="margin-top:18px"><button class="btn ghost danger" id="dc">Disconnect this device</button></p></div></section>`,
+        ${window.APP_CONFIG ? '' : '<p style="margin-top:18px"><button class="btn ghost danger" id="dc">Disconnect this device</button></p>'}</div></section>`,
         after() {
-          $('#drole')?.addEventListener('change', async e => { try { await DB.setSetting('default_role', e.target.value); applySettings(); toast('Saved. If new people still start as viewers, run the setup script once more in Supabase.'); } catch (x) { fail(x); } });
+          $('#drole')?.addEventListener('change', async e => { try { await DB.setSetting('default_role', e.target.value); applySettings(); toast('Saved. Run the latest setup script once in Supabase if you haven’t yet.'); } catch (x) { fail(x); } });
           $('#bake')?.addEventListener('click', async () => {
             try {
               const src = await (await fetch(location.href.split('#')[0].split('?')[0], { cache: 'no-store' })).text();
@@ -3107,7 +3623,7 @@ const SETTINGS_TABS = {
           });
           $('#ci')?.addEventListener('click', () => { navigator.clipboard?.writeText(appLink('')); toast('Invite link copied.'); });
           $('#cs').onclick = () => { navigator.clipboard?.writeText(SETUP_SQL); toast('Setup script copied.'); };
-          $('#dc').onclick = async () => { if (!(await confirmBox('Disconnect this device?', 'You can reconnect any time with the same project URL and key.', 'Disconnect'))) return; lsSet('cpt_cfg', null); localStorage.removeItem('cpt_cfg'); await sb.auth.signOut(); location.hash = ''; location.reload(); };
+          $('#dc') && ($('#dc').onclick = async () => { if (!(await confirmBox('Disconnect this device?', 'You can reconnect any time with the same project URL and key.', 'Disconnect'))) return; lsSet('cpt_cfg', null); localStorage.removeItem('cpt_cfg'); await sb.auth.signOut(); location.hash = ''; location.reload(); });
           $('#mv')?.addEventListener('click', async () => {
             if (!(await confirmBox('Copy trial data to the cloud?', 'Everything from this browser (orders, parts, POs, process steps, masters, team, tasks) will be added to the shared database.', 'Copy data', false))) return;
             try {
@@ -3242,6 +3758,7 @@ async function start(cfg) {
   }
   parseHash(); render();
   if (S.mode === 'cloud') Cloud.subscribe();
+  if (S.mode === 'cloud' && isAdmin()) sb.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'none').then(({ count }) => { if (count) toast(`${count} ${count === 1 ? 'person is' : 'people are'} waiting for access.`, [{ label: 'Review', route: 'settings?tab=access' }], 10000); }).catch(() => { });
   if (S.mode === 'cloud' && myRole() === 'viewer' && !S.ui.viewerNote) { toast('You have view-only access. Ask an admin to change your role if you need to make changes.', [], 9000); S.ui.viewerNote = 1; saveUI(); }
   setTimeout(maybeAutoDigest, 4000);
   setTimeout(() => scanReminders().catch(e => console.warn(e)), 2500);
@@ -3250,7 +3767,7 @@ async function start(cfg) {
 }
 
 async function boot() {
-  if (S.ui.theme) document.documentElement.dataset.theme = S.ui.theme;
+  document.documentElement.dataset.theme = S.ui.theme || 'dark';
   const inv = readInvite(location.search);
   if (inv) { lsSet('cpt_cfg', inv); history.replaceState(null, '', location.pathname + location.hash); }
   const cfg = window.APP_CONFIG || lsGet('cpt_cfg', null);
@@ -3265,7 +3782,7 @@ async function boot() {
   S.session = session;
   const { data: prof } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
   S.profile = prof || { email: session.user.email, role: 'none' };
-  if (S.profile.role === 'none') { $('#app').innerHTML = `<div class="gate">${gateArt('Waiting for access', 'Your account exists but has no profile yet.')}<div class="form"><h2>Almost there</h2><p class="muted">Ask the admin to run the latest setup script in Supabase, then sign in again.</p><button class="btn" id="so">Sign out</button></div></div>`; $('#so').onclick = async () => { await sb.auth.signOut(); location.reload(); }; return; }
+  if (S.profile.role === 'none') { $('#app').innerHTML = `<div class="gate">${gateArt('Waiting for access', 'Your account is created. An admin needs to approve it before you can see any data.')}<div class="form"><h2>Waiting for approval</h2><p class="muted">Signed in as <b>${esc(session.user.email)}</b>. Ask your admin to give you a role in Settings → Users &amp; access, then reload this page.</p><button class="btn pri" style="margin-bottom:10px" onclick="location.reload()">Reload</button><button class="btn" id="so">Sign out</button></div></div>`; $('#so').onclick = async () => { await sb.auth.signOut(); location.reload(); }; return; }
   await start(cfg);
 }
 window.addEventListener('DOMContentLoaded', () => boot().catch(e => { console.error(e); $('#app').innerHTML = `<div class="empty"><b>Something went wrong while starting</b>${esc(e.message)}<br><button class="btn" onclick="location.reload()">Reload</button></div>`; }));
