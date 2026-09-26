@@ -410,7 +410,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now().toString(36) + Math.random().toString(36).slice(2));
-const num = v => { if (v === null || v === undefined || v === '') return null; const n = Number(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
+const num = v => { if (v === null || v === undefined || v === '') return null; if (typeof v === 'number') return isFinite(v) ? v : null; const t = String(v).replace(/[^0-9.\-]/g, ''); if (!/\d/.test(t)) return null; const n = Number(t); return isFinite(n) ? n : null; };
 const round = (n, d = 2) => n == null ? null : Math.round(n * 10 ** d) / 10 ** d;
 const pad = n => String(n).padStart(2, '0');
 const isoDate = d => d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : '';
@@ -2469,20 +2469,20 @@ const isDate = v => Object.prototype.toString.call(v) === '[object Date]';
 const hnorm = h => String(h ?? '').toLowerCase().replace(/ø/g, '').replace(/[^a-z0-9#]+/g, ' ').trim();
 const SYN = {
   parts: {
-    drawing_no: ['drawing no', 'drawing #', 'drg no', 'drawing number'], ga_drawing_no: ['ga drawing no', 'ga drg no'], project: ['project name', 'project'],
+    _sl: ['sl no', 'sl #', 's no'], drawing_no: ['drawing no', 'drawing #', 'drg no', 'drawing number'], ga_drawing_no: ['ga drawing no', 'ga drg no'], project: ['project name', 'project'],
     customer: ['customer'], part_name: ['part name', 'parts name'], type: ['type'], dia: ['dia'], length: ['l', 'length'], width: ['w', 'width'], thk: ['thk', 'thickness', 't'],
     grade: ['mtl grade', 'material grade', 'grade', 'material'], qty: ['qty', 'quantity'], planned_weight: ['planed weight kg', 'planned weight kg', 'planed weight', 'planned weight'],
     actual_weight: ['actual weight'], cost_per_kg: ['per kg cost', 'cost per kg', 'rm cost kg'], cutting_charge: ['cutting charge'], planned_cost: ['planed cost', 'planned cost'],
     actual_cost: ['actual cost'], order_date: ['order date'], target_date: ['project target date', 'target date'], rm_status: ['rm status', 'raw material status'], remarks: ['remarks'],
   },
   jobs: {
-    in_date: ['in date'], moved_by: ['moved by'], supplier: ['supplier', 'supplier name'], project: ['project name', 'project'], drawing_no: ['drawing no', 'drawing #'],
+    _sl: ['sl no', 'sl #', 's no'], in_date: ['in date'], moved_by: ['moved by'], supplier: ['supplier', 'supplier name'], project: ['project name', 'project'], drawing_no: ['drawing no', 'drawing #'],
     part_name: ['parts name', 'part name'], process: ['process'], ht: ['h t process', 'heat treatment'], out_date: ['out date'], target_date: ['target date'], qty: ['qty'],
     rate: ['per m c cost', 'machining cost per part', 'rate'], total_amount: ['total amount'], pre_inspection: ['pre inspection'], final_inspection: ['final inspecton', 'final inspection'],
     status: ['status'], remarks: ['remarks'], rejection_qty: ['rejection qty'], debit_amount: ['debit amt', 'debit amount'], assigned_to: ['follow up owner'],
   },
   grinding: {
-    received_date: ['recived date', 'received date'], project: ['project name', 'project'], part_name: ['part name'], drawing_no: ['drawing #', 'drawing no'],
+    _sl: ['sl no', 'sl #', 's no'], received_date: ['recived date', 'received date'], project: ['project name', 'project'], part_name: ['part name'], drawing_no: ['drawing #', 'drawing no'],
     process: ['process'], operator: ['m c operator', 'machine operator', 'operator'], qty: ['qty'], start_time: ['duration min start', 'start time', 'start'],
     end_time: ['duration min end', 'end time', 'end'], end_date: ['end date'], remarks: ['remarks'],
   },
@@ -2506,6 +2506,7 @@ function mapHeaders(headers, table) {
   }
   return map;
 }
+const normProc = v => { const t = titleCase(String(v || '').replace(/[`'"]+/g, '').trim()); return t ? t.replace(/^Cylinderical/, 'Cylindrical').replace(/^Cnc - /, 'CNC ').replace(/^Sg & Cg & Vmc$/, 'SG & CG & VMC').replace(/^Ht$/, 'HT').replace(/^Cmm$/, 'CMM').replace(/^Milling\s*\+\s*sg$/i, 'Milling + SG') : null; };
 const LEGACY_DATES = new Set(['in_date', 'out_date', 'end_date']);
 const MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
 const validYMD = (y, m, d) => { y = +y; m = +m; d = +d; if (!(y > 1990 && y < 2100 && m >= 1 && m <= 12 && d >= 1)) return null; if (d > new Date(y, m, 0).getDate()) return null; return `${y}-${pad(m)}-${pad(d)}`; };
@@ -2516,6 +2517,7 @@ function xDate(v) {
   const s = String(v).trim(); let m;
   if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) return validYMD(m[1], m[2], m[3]);
   if ((m = /^(\d{1,2})[\/.\- ]+(\d{1,2})[\/.\- ]+(\d{2,4})$/.exec(s))) return validYMD(m[3].length === 2 ? '20' + m[3] : m[3], m[2], m[1]);
+  if ((m = /^(\d{1,2})[\/.\-](\d{2})(\d{4})$/.exec(s))) return validYMD(m[3], m[2], m[1]);
   if ((m = /^(\d{1,2})[\/.\- ]+([a-z]{3})[a-z]*[\/.\-, ]+(\d{2,4})$/i.exec(s)) && MON[m[2].toLowerCase()]) return validYMD(m[3].length === 2 ? '20' + m[3] : m[3], MON[m[2].toLowerCase()], m[1]);
   return null;
 }
@@ -2579,7 +2581,8 @@ function parseWorkbook(wb) {
   partSheets.forEach((sh, si) => {
     const map = mapHeaders(sh.headers, 'parts'); const local = new Set();
     for (const r of sh.rows.slice(sh.start)) {
-      const o = rowToObj(r, map, 'parts'); if (!o.drawing_no) continue;
+      const o = rowToObj(r, map, 'parts');
+      if (!o.drawing_no) { if (si > 0 || !(o.part_name || o.project) || !(o.grade || o.length || o.dia || o.qty)) continue; o.drawing_no = `NO-DRG-RM${o._sl ?? out.parts.length + 1}`; o.remarks = [o.remarks, 'No drawing no. in Excel'].filter(Boolean).join(' · '); }
       const k = norm(o.drawing_no); if (si > 0 && seenDrg.has(k)) continue; local.add(k); out.parts.push(o);
     }
     local.forEach(k => seenDrg.add(k));
@@ -2587,7 +2590,11 @@ function parseWorkbook(wb) {
   for (const sh of sheetInfos) {
     if (['jobs', 'grinding', 'suppliers', 'team', 'tasks'].includes(sh.kind)) {
       const map = mapHeaders(sh.headers, sh.kind);
-      for (const r of sh.rows.slice(sh.start)) { const o = rowToObj(r, map, sh.kind); if (sh.kind === 'suppliers' || sh.kind === 'team' ? o.name : sh.kind === 'tasks' ? o.title : o.drawing_no) out[sh.kind].push(o); }
+      for (const r of sh.rows.slice(sh.start)) {
+        const o = rowToObj(r, map, sh.kind);
+        if ((sh.kind === 'jobs' || sh.kind === 'grinding') && !o.drawing_no && o.process && (sh.kind === 'jobs' ? o.supplier : o.operator) && (o.in_date || o.received_date || o._txt_in_date)) { o.drawing_no = `NO-DRG-${sh.kind === 'jobs' ? 'PT' : 'SG'}${o._sl ?? out[sh.kind].length + 1}`; o._nodrg = 1; }
+        if (sh.kind === 'suppliers' || sh.kind === 'team' ? o.name : sh.kind === 'tasks' ? o.title : o.drawing_no) out[sh.kind].push(o);
+      }
     }
     if (sh.kind === 'lists') readLists(sh, out);
   }
@@ -2613,8 +2620,8 @@ function parseWorkbook(wb) {
   // masters seen in data
   const M = out.masters; const addM = (c, v, extra) => { v = xStr(v); if (!v || v === '.') return; const e = M.find(m => m.category === c && norm(m.value) === norm(v)); if (e) { if (extra) e.extra = { ...e.extra, ...extra }; } else M.push({ category: c, value: v, extra: extra || {} }); };
   out.parts.forEach(p => { addM('part_type', p.type); addM('grade', p.grade); addM('customer', p.customer); });
-  out.grinding.forEach(g => addM('process', titleCase(g.process), { in_house: true }));
-  out.jobs.forEach(j => addM('process', titleCase(j.process)));
+  out.grinding.forEach(g => addM('process', normProc(g.process), { in_house: true }));
+  out.jobs.forEach(j => addM('process', normProc(j.process)));
   out.jobs.forEach(j => { addM('inspection', j.pre_inspection === 'FIXTURE BASE PLATER' ? null : j.pre_inspection); addM('inspection', j.final_inspection); });
   for (const [c, v, x] of out._masters) addM(c, v, x);
   delete out._masters; delete out._teamTags;
@@ -2628,9 +2635,9 @@ function rowToObj(r, map, table) {
   const o = {};
   for (const [i, key] of Object.entries(map)) {
     const v = r[i];
-    if (DATES.has(key) || LEGACY_DATES.has(key)) o[key] = xDate(v);
+    if (DATES.has(key) || LEGACY_DATES.has(key)) { o[key] = xDate(v); if (o[key] == null && v != null && String(v).trim() && !isDate(v)) o['_txt_' + key] = String(v).trim(); }
     else if (key === 'start_time' || key === 'end_time') o[key] = xTime(v);
-    else if (NUMERIC.has(key)) { const n = typeof v === 'number' ? v : num(v); o[key] = n; }
+    else if (NUMERIC.has(key)) { const n = typeof v === 'number' ? v : num(v); o[key] = n; if (typeof v === 'string' && v.trim() && String(n) !== v.trim()) o['_txt_' + key] = v.trim(); }
     else if (key === 'tags') o[key] = String(v || '').split(',').map(s => s.trim()).filter(Boolean);
     else if (key === 'assigned_to') { const m = teamByName(v); o[key] = m?.id || null; }
     else o[key] = xStr(v);
@@ -2647,7 +2654,7 @@ function readLists(sh, out) {
   sh.headers.forEach((h, i) => {
     for (const r of sh.rows.slice(sh.start)) {
       const v = xStr(r[i]); if (!v) continue;
-      if (cat[h]) out._masters.push([cat[h], cat[h] === 'process' ? titleCase(v) : v, h === 'status' ? { closed: /complete|received|done|closed/i.test(v) } : cat[h] === 'process' ? { in_house: true } : null]);
+      if (cat[h]) out._masters.push([cat[h], cat[h] === 'process' ? normProc(v) : v, h === 'status' ? { closed: /complete|received|done|closed/i.test(v) } : cat[h] === 'process' ? { in_house: true } : null]);
       if (team[h]) out._teamTags.push([v, team[h]]);
     }
   });
@@ -2679,8 +2686,8 @@ async function buildWorkflowFromLegacy(P, closedSet, log) {
   const M = [];
   const addM = (c, v, extra) => { v = clean(v); if (!v) return; if (masters(c).some(x => norm(x.value) === norm(v)) || M.some(x => x.category === c && norm(x.value) === norm(v))) { const e = M.find(x => x.category === c && norm(x.value) === norm(v)); if (e && extra) e.extra = { ...e.extra, ...extra }; return; } M.push({ category: c, value: v, extra: extra || {}, sort: 100 + M.length }); };
   for (const m of P.masters || []) if (['part_type', 'inspection', 'process', 'hold_reason'].includes(m.category)) addM(m.category, m.value, m.extra);
-  (P.jobs || []).forEach(j => { addM('process', titleCase(j.process)); addM('inspection', j.final_inspection); });
-  (P.grinding || []).forEach(g => addM('process', titleCase(g.process), { in_house: true }));
+  (P.jobs || []).forEach(j => { addM('process', normProc(j.process)); addM('inspection', j.final_inspection); if (/reject/i.test(j._txt_out_date || '')) addM('inspection', 'Rejected'); });
+  (P.grinding || []).forEach(g => addM('process', normProc(g.process), { in_house: true }));
   (P.parts || []).forEach(p => addM('part_type', p.type));
   if (M.length) await DB.insert('masters', M); res.lists = M.length;
   // 2. RM master
@@ -2699,12 +2706,12 @@ async function buildWorkflowFromLegacy(P, closedSet, log) {
   if (newT.length) await DB.insert('team', newT); res.team = newT.length;
   const newS = (P.suppliers || []).filter(s => !supplierByName(s.name)); if (newS.length) await DB.insert('suppliers', newS); res.suppliers = newS.length;
   // 5. orders — one per jig / fixture project
-  const proj = new Map(); const pk = v => norm(clean(v));
+  const proj = new Map(); const pk = v => norm(clean(v)).replace(/[^a-z0-9]+/g, '');
   const touch = (name, date, target, customer) => { const k = pk(name); if (!k) return; const o = proj.get(k) || { name: clean(name), first: null, last: null, target: null, cust: {} }; if (date) { if (!o.first || date < o.first) o.first = date; if (!o.last || date > o.last) o.last = date; } if (target && (!o.target || target > o.target)) o.target = target; if (customer) o.cust[customer] = (o.cust[customer] || 0) + 1; proj.set(k, o); };
   for (const p of [...(P.parts || []), ...(S.data.parts || []).filter(p => !p.order_id)]) touch(p.project, p.order_date, p.target_date, clean(p.customer));
   for (const j of P.jobs || []) touch(j.project, j.in_date, null, null);
   for (const g of P.grinding || []) touch(g.project, g.received_date, null, null);
-  const byProj = new Map((S.data.orders || []).map(o => [norm(o.project), o]));
+  const byProj = new Map((S.data.orders || []).map(o => [pk(o.project), o]));
   const newO = []; const cnt = {};
   const fy = nextNo('orders', 'order_no', 'SO').replace(/-\d+$/, '');
   const maxN = (S.data.orders || []).reduce((m, o) => { const x = /-(\d+)$/.exec(o.order_no || ''); return x ? Math.max(m, +x[1]) : m; }, 0);
@@ -2716,7 +2723,7 @@ async function buildWorkflowFromLegacy(P, closedSet, log) {
     newO.push({ order_no: `${pre}-${String(cnt[pre]).padStart(3, '0')}`, order_date: o.first, project: o.name, customer: Object.keys(o.cust).sort((a, b) => o.cust[b] - o.cust[a])[0] || null, qty: 1, delivery_date: o.target, status: old ? 'Closed' : 'In production', alert_state: old ? 'late' : null });
   }
   if (newO.length) { log(`Creating ${newO.length} orders…`); await DB.insert('orders', newO); } res.orders = newO.length;
-  const orderOf = name => (S.data.orders || []).find(o => norm(o.project) === pk(name));
+  const orderOf = name => pk(name) ? (S.data.orders || []).find(o => pk(o.project) === pk(name)) : null;
   // 6. parts (RM plan) linked to orders
   const fix = (S.data.parts || []).filter(p => !p.order_id && orderOf(p.project)).map(p => ({ id: p.id, order_id: orderOf(p.project).id }));
   if (fix.length) await DB.patchMany('parts', fix);
@@ -2724,17 +2731,47 @@ async function buildWorkflowFromLegacy(P, closedSet, log) {
   const newP = (P.parts || []).map(p => { const o = orderOf(p.project); const { rm_status, customer, planned_weight, planned_cost, actual_cost, ...r } = p; return { ...r, project: clean(p.project), grade: clean(p.grade)?.toUpperCase() || null, order_id: o?.id || null, rm_source: 'Purchase', rm_received_date: num(p.actual_weight) ? (p.order_date || null) : null }; }).filter(p => !haveP.has(norm(p.drawing_no) + '|' + (p.order_id || '')));
   if (newP.length) { log(`Saving ${fmtN(newP.length)} parts…`, 0); await DB.insert('parts', newP, (d, n) => log(`Saving parts: ${fmtN(d)} of ${fmtN(n)}`, d / n)); } res.parts = newP.length;
   // 7. process steps from the job-work and grinding registers
-  const partFor = (drg, project) => { const c = (S.data.parts || []).filter(p => norm(p.drawing_no) === norm(drg)); return c.find(p => orderById(p.order_id) && pk(orderById(p.order_id).project) === pk(project)) || c[0] || null; };
+  const pref = d => { const m = /^([a-z]+-\d{3,4}-\d{1,3})-/i.exec(String(d || '').replace(/\s+/g, '')); return m ? m[1].toUpperCase() : null; };
+  const byPref = new Map(); for (const p of S.data.parts || []) { const k = pref(p.drawing_no) || pref(p.ga_drawing_no); if (k && p.order_id && !byPref.has(k)) byPref.set(k, p.order_id); }
+  const orderFor = (drg, project) => orderOf(project) || orderById(byPref.get(pref(drg))) || orderOf(drg) || (catchAll && orderById(catchAll));
+  let catchAll = null;
+  // process rows with no project name: group them by drawing-number prefix into one order each
+  const needPref = new Map();
+  for (const x of [...(P.jobs || []), ...(P.grinding || [])]) { if (x._nodrg || orderFor(x.drawing_no, x.project)) continue; const k = pref(x.drawing_no); if (!k) continue; const d = x.in_date || x.received_date || null; const e = needPref.get(k) || { first: d, last: d }; if (d && (!e.first || d < e.first)) e.first = d; if (d && (!e.last || d > e.last)) e.last = d; needPref.set(k, e); }
+  if (needPref.size) {
+    const rows = [...needPref].filter(([k]) => !(S.data.orders || []).some(o => o.project === `Project not named in Excel (${k})`)).map(([k, e]) => { const pre = (() => { const x = parseD(e.first); if (!x) return fy; const fm = (num(S.settings.fy_start_month) || 4) - 1; const y = x.getMonth() >= fm ? x.getFullYear() : x.getFullYear() - 1; return 'SO-' + String(y).slice(2) + String(y + 1).slice(2); })(); cnt[pre] = (cnt[pre] ?? (pre === fy ? maxN : 0)) + 1; const old = (e.last || '') < recentCut(); return { order_no: `${pre}-${String(cnt[pre]).padStart(3, '0')}`, order_date: e.first, project: `Project not named in Excel (${k})`, qty: 1, status: old ? 'Closed' : 'In production', alert_state: old ? 'late' : null, remarks: 'Created from process-tracker rows that had no project name, grouped by drawing number.' }; });
+    if (rows.length) await DB.insert('orders', rows);
+    for (const o of S.data.orders) { const m = /^Project not named in Excel \((.+)\)$/.exec(o.project || ''); if (m) byPref.set(m[1], o.id); }
+    res.orders += rows.length;
+  }
+  if ([...(P.jobs || []), ...(P.grinding || [])].some(x => !orderFor(x.drawing_no, x.project))) {
+    const name = 'Process records without a project (from Excel)'; let o = (S.data.orders || []).find(x => x.project === name);
+    if (!o) { [o] = await DB.insert('orders', { order_no: `${fy}-${String((cnt[fy] = (cnt[fy] ?? maxN) + 1)).padStart(3, '0')}`, project: name, qty: 1, status: 'Closed', alert_state: 'late', remarks: 'Rows in PARTS TRACKERS / SG & CG with no project and no recognisable drawing number.' }); res.orders++; }
+    catchAll = o.id;
+  }
+  // drawings that only appear in the process registers get a part record so the tracker can show them
+  const missing = new Map();
+  for (const x of [...(P.jobs || []), ...(P.grinding || [])]) { if (x._nodrg) continue; const c = (S.data.parts || []).filter(p => norm(p.drawing_no) === norm(x.drawing_no)); if (c.length) continue; const o = orderFor(x.drawing_no, x.project); const k = norm(x.drawing_no) + '|' + (o?.id || ''); if (!missing.has(k)) missing.set(k, { order_id: o?.id || null, drawing_no: x.drawing_no, part_name: x.part_name || null, project: o?.project || clean(x.project), qty: x.qty ?? null, order_date: x.in_date || x.received_date || null, rm_source: null, remarks: 'Created from the process tracker — not in the RM sheet' }); }
+  if (missing.size) { log(`Adding ${missing.size} parts found only in the process sheets…`); await DB.insert('parts', [...missing.values()]); }
+  res.parts = (res.parts || 0) + missing.size;
+  const partFor = (drg, project) => { const c = (S.data.parts || []).filter(p => norm(p.drawing_no) === norm(drg)); return c.find(p => orderById(p.order_id) && pk(orderById(p.order_id).project) === pk(project)) || c.find(p => orderById(p.order_id) && orderById(p.order_id) === orderFor(drg, project)) || c[0] || null; };
+  const outTxt = t => { if (!t) return null; const m = /^(\d+)\/([a-z]{3})[a-z]*\/(\d{2})$/i.exec(t); if (m) { let d = +m[1]; if (d > 31 && String(d).endsWith(m[3])) d = +String(d).slice(0, -2); return { done: true, date: d >= 1 && d <= 31 ? xDate(`${d}/${m[2]}/${m[3]}`) : null }; } if (/reject/i.test(t)) return { done: true, date: null, rejected: true }; return { done: false }; };
+  const proc = normProc;
   const ops = [];
   for (const j of P.jobs || []) {
-    const p = partFor(j.drawing_no, j.project), o = p ? orderById(p.order_id) : orderOf(j.project);
-    const done = !!j.out_date || closedSet.has(norm(j.status)) || /complete|received|done/i.test(j.status || '');
-    ops.push({ order_id: o?.id || null, part_id: p?.id || null, drawing_no: j.drawing_no, part_name: j.part_name || p?.part_name || null, project: clean(j.project) || o?.project || null, qty: j.qty, process: titleCase(j.process) || null, owner_type: 'Supplier', supplier: j.supplier || null, target_date: j.target_date || null, status: done ? 'Done' : 'At supplier', progress: done ? 100 : 30, sent_date: j.in_date || null, done_date: done ? (j.out_date || j.in_date || null) : null, plan_rate: j.rate ?? null, actual_rate: j.rate ?? null, paid_amount: done && num(j.rate) != null && num(j.qty) != null ? round(Math.max(0, num(j.rate) * num(j.qty) - (num(j.debit_amount) || 0))) : null, inspection: j.final_inspection || null, rejection_qty: j.rejection_qty ?? null, debit_amount: j.debit_amount ?? null, moved_by: j.moved_by || null, remarks: j.remarks || null, alert_state: done ? null : 'late', _d: j.in_date || '' });
+    const p = j._nodrg ? null : partFor(j.drawing_no, j.project), o = p ? orderById(p.order_id) : orderFor(j.drawing_no, j.project);
+    const ot = outTxt(j._txt_out_date);
+    const done = !!j.out_date || !!ot?.done || closedSet.has(norm(j.status)) || /complete|received|done/i.test(j.status || '');
+    if (ot?.done && !j.out_date) j.out_date = ot.date || j.in_date || null;
+    const notes = [j.remarks, j._txt_out_date && `Out-date in Excel: “${j._txt_out_date}”`, j._txt_in_date && `In-date in Excel: “${j._txt_in_date}”`, j._txt_qty && `Qty in Excel: “${j._txt_qty}”`, j.pre_inspection && `Pre-inspection: ${j.pre_inspection}`, j.ht && j.ht !== 'No' && `H/T: ${j.ht}`, j.status && `Excel status: ${j.status}`, j._nodrg && 'No drawing no. in Excel'].filter(Boolean);
+    j.remarks = notes.join(' · ') || null; if (ot?.rejected) j.final_inspection = 'Rejected';
+    ops.push({ order_id: o?.id || null, part_id: p?.id || null, drawing_no: j.drawing_no, part_name: j.part_name || p?.part_name || null, project: clean(j.project) || o?.project || null, qty: j.qty, process: proc(j.process), owner_type: 'Supplier', supplier: j.supplier || null, target_date: j.target_date || null, status: done ? 'Done' : 'At supplier', progress: done ? 100 : 30, sent_date: j.in_date || null, done_date: done ? (j.out_date || j.in_date || null) : null, plan_rate: j.rate ?? null, actual_rate: j.rate ?? null, paid_amount: done && num(j.rate) != null && num(j.qty) != null ? round(Math.max(0, num(j.rate) * num(j.qty) - (num(j.debit_amount) || 0))) : null, inspection: j.final_inspection || null, rejection_qty: j.rejection_qty ?? null, debit_amount: j.debit_amount ?? null, moved_by: j.moved_by || null, remarks: j.remarks || null, alert_state: done ? null : 'late', _d: j.in_date || '' });
   }
   for (const g of P.grinding || []) {
-    const p = partFor(g.drawing_no, g.project), o = p ? orderById(p.order_id) : orderOf(g.project), m = teamByName(g.operator);
+    const p = g._nodrg ? null : partFor(g.drawing_no, g.project), o = p ? orderById(p.order_id) : orderFor(g.drawing_no, g.project), m = teamByName(g.operator);
+    g.remarks = [g.remarks, g._txt_received_date && `Received date in Excel: “${g._txt_received_date}”`, g._txt_end_date && `End date in Excel: “${g._txt_end_date}”`, g._txt_qty && `Qty in Excel: “${g._txt_qty}”`, g._nodrg && 'No drawing no. in Excel'].filter(Boolean).join(' · ') || null;
     const done = !!g.end_date;
-    ops.push({ order_id: o?.id || null, part_id: p?.id || null, drawing_no: g.drawing_no, part_name: g.part_name || p?.part_name || null, project: clean(g.project) || o?.project || null, qty: g.qty, process: titleCase(g.process) || null, owner_type: 'In-house', owner_member: m?.id || null, status: done ? 'Done' : 'In progress', progress: done ? 100 : 30, start_date: g.received_date || null, done_date: g.end_date || null, start_time: g.start_time || null, end_time: g.end_time || null, remarks: g.remarks || null, alert_state: done ? null : 'late', _d: g.received_date || '' });
+    ops.push({ order_id: o?.id || null, part_id: p?.id || null, drawing_no: g.drawing_no, part_name: g.part_name || p?.part_name || null, project: clean(g.project) || o?.project || null, qty: g.qty, process: proc(g.process), owner_type: 'In-house', owner_member: m?.id || null, status: done ? 'Done' : 'In progress', progress: done ? 100 : 30, start_date: g.received_date || null, done_date: g.end_date || null, start_time: g.start_time || null, end_time: g.end_time || null, remarks: g.remarks || null, alert_state: done ? null : 'late', _d: g.received_date || '' });
   }
   const key = o => [norm(o.drawing_no), o.owner_type, norm(o.supplier || o.owner_member), norm(o.process), o.sent_date || o.start_date, o.qty].join('|');
   const haveO = new Set((S.data.operations || []).map(key));
