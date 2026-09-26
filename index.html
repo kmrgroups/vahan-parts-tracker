@@ -1517,7 +1517,7 @@ function flowStrip(active) {
   const toInv = (S.data.orders || []).filter(o => o.status === 'Delivered' && !o.invoice_amount).length;
   const recv = (S.data.orders || []).reduce((s, o) => s + Math.max(0, computeRow('orders', o).outstanding || 0), 0);
   const st = [
-    ['orders', '1', 'Order', orders.length ? `${orders.length} open` : 'Add an order', ''],
+    ['orders', '1', 'Order', orders.length ? `${orders.length} open` : (S.data.orders || []).length ? `0 open · ${(S.data.orders || []).length} closed` : 'Add an order', ''],
     ['rmplan', '2', 'RM plan', toBuy ? `${toBuy} parts to buy` : parts.length ? 'All covered' : 'Add child parts', toBuy ? 'amber' : ''],
     ['purchase', '3', 'Purchase & GRN', poOpen ? `${poOpen} PO open` : 'Nothing pending', ''],
     ['process', '4', 'Process plan', noRoute ? `${noRoute} parts not planned` : late ? `${late} steps late` : 'On track', noRoute || late ? (late ? 'red' : 'amber') : ''],
@@ -1528,8 +1528,14 @@ function flowStrip(active) {
 }
 
 /* ================= dashboard ================= */
+function hasDataIn(p) { const R = periodRange(p); return (S.data.orders || []).some(o => inR(o.order_date, R) || !ORDER_DONE.has(o.status)); }
+function historyBanner() {
+  const all = S.data.orders || []; if (!all.length || all.some(o => !ORDER_DONE.has(o.status))) return '';
+  const ds = all.map(o => o.order_date).filter(Boolean).sort();
+  return `<div class="panel" style="margin-bottom:16px;border-color:var(--steel)"><div class="body row"><span style="flex:1;min-width:240px"><b>${fmtN(all.length)} orders are in the app as closed history</b>${ds.length ? ` (${fmtD(ds[0])} – ${fmtD(ds[ds.length - 1])})` : ''}. Orders with no activity for ${num(S.settings.alert_lookback_days) || 120} days are imported as <i>Closed</i> so old work doesn’t flood the alerts. Reopen any that are still running, or add a new order to start the live workflow.</span><a class="btn" href="#/orders?f=done">Review &amp; reopen</a>${canEdit() ? `<a class="btn pri" href="#/orders">${ICON.plus}New order</a>` : ''}</div></div>`;
+}
 function viewDashboard() {
-  const tab = S.ui.dtab || 'overview', period = S.ui.period || 'fy', R = periodRange(period);
+  const tab = S.ui.dtab || 'overview', period = S.ui.period || (hasDataIn('fy') ? 'fy' : 'all'), R = periodRange(period);
   const tabs = seg('dtab', [['overview', 'Overview'], ['rm', 'Raw material'], ['proc', 'Process cost'], ['cust', 'Customers'], ['sup', 'Suppliers']], tab);
   const orders = (S.data.orders || []).filter(o => inR(o.order_date, R) || !ORDER_DONE.has(o.status));
   const oIds = new Set(orders.map(o => o.id));
@@ -1538,7 +1544,7 @@ function viewDashboard() {
   const kpi = (label, value, small, route, cls = '') => `<button class="kpi ${cls}" data-go="${route}"><span>${esc(label)}</span><b>${value}</b><small>${small || ''}</small></button>`;
   const empty = !(S.data.orders || []).length && !(S.data.parts || []).length;
   const top = `<div class="toolbar">${tabs}<span class="spacer"></span>${seg('period', [['month', 'Month'], ['3m', '3 months'], ['fy', 'This FY'], ['lfy', 'Last FY'], ['all', 'All']], period)}${canEdit() ? `<button class="btn" data-digest title="Send the daily digest to managers now">${ICON.mail}<span class="only-desk">Digest</span></button>` : ''}</div>
-  ${empty ? `<div class="panel" style="margin-bottom:16px"><div class="empty"><b>Start with an order</b>Record a jig or fixture order, add its child parts, and the app takes you through purchase, processes, monitoring and billing.<br>${canEdit() ? `<a class="btn pri" href="#/orders">${ICON.plus}New order</a> ` : ''}${isAdmin() ? `<a class="btn" href="#/settings?tab=data">${ICON.up}Import Excel workbook</a>` : ''}</div></div>` : ''}`;
+  ${historyBanner()}${empty ? `<div class="panel" style="margin-bottom:16px"><div class="empty"><b>Start with an order</b>Record a jig or fixture order, add its child parts, and the app takes you through purchase, processes, monitoring and billing.<br>${canEdit() ? `<a class="btn pri" href="#/orders">${ICON.plus}New order</a> ` : ''}${isAdmin() ? `<a class="btn" href="#/settings?tab=data">${ICON.up}Import Excel workbook</a>` : ''}</div></div>` : ''}`;
   const after0 = () => { wireFilters(); $$('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go)); $('[data-digest]')?.addEventListener('click', () => sendDigest(true).catch(e => fail(e))); };
   const C = () => ({ steel: cssVar('--steel'), amber: cssVar('--amber'), red: cssVar('--red'), green: cssVar('--green'), line: cssVar('--line'), muted: cssVar('--muted') });
   const short = s => String(s || '—').length > 22 ? String(s).slice(0, 21) + '…' : String(s || '—');
@@ -1847,9 +1853,11 @@ function taskQuick(t) {
 
 /* ================= part tracker ================= */
 function viewTracker() {
-  const oid = S.params.order || S.ui.tr_order || '', q = S.ui.q_tr || '', f = S.ui.tr_f || 'all';
+  const anyOpen = (S.data.orders || []).some(o => !ORDER_DONE.has(o.status));
+  const latest = (S.data.orders || []).slice().sort((a, b) => (b.order_date || '').localeCompare(a.order_date || ''))[0];
+  const oid = S.params.order || S.ui.tr_order || (!anyOpen && latest ? latest.id : ''), q = S.ui.q_tr || '', f = S.ui.tr_f || 'all';
   const orders = (S.data.orders || []).filter(o => oid ? o.id === oid : !ORDER_DONE.has(o.status)).sort((a, b) => (a.delivery_date || '9').localeCompare(b.delivery_date || '9'));
-  const optsO = (S.data.orders || []).filter(o => !ORDER_DONE.has(o.status) || o.id === oid).sort((a, b) => (b.order_date || '').localeCompare(a.order_date || ''));
+  const optsO = (S.data.orders || []).slice().sort((a, b) => (ORDER_DONE.has(a.status) - ORDER_DONE.has(b.status)) || (b.order_date || '').localeCompare(a.order_date || ''));
   const block = o => {
     let parts = partsOfOrder(o).filter(p => matchQ(p, q, ['drawing_no', 'part_name']));
     const pp = parts.map(p => ({ p, pr: partProgress(p) }));
@@ -1861,7 +1869,7 @@ function viewTracker() {
   };
   const blocks = orders.slice(0, oid ? 1 : 25).map(block).join('');
   const html = `<p class="lede">Every child part of every open order: raw material status, each process step in sequence (hover a step for owner and date), overall progress and who has it now. <span class="legend"><span class="opchip done">D</span> done <span class="opchip green">R</span> running <span class="opchip amber">D</span> due / hold <span class="opchip red">L</span> late <span class="opchip plan">P</span> not started</span></p>
-  <div class="toolbar"><select class="sel" data-self="tr_order" aria-label="Order"><option value="">All open orders</option>${optsO.map(o => `<option value="${o.id}" ${o.id === oid ? 'selected' : ''}>${esc(orderLabel(o))}</option>`).join('')}</select>${seg('tr_f', [['all', 'All parts'], ['risk', 'At risk'], ['late', 'Late'], ['noplan', 'Not planned'], ['done', 'Complete']], f)}${searchBox('tr', 'Search drawing or part…')}</div>
+  <div class="toolbar"><select class="sel" data-self="tr_order" aria-label="Order"><option value="">All open orders</option>${optsO.map(o => `<option value="${o.id}" ${o.id === oid ? 'selected' : ''}>${esc(orderLabel(o))}${ORDER_DONE.has(o.status) ? ' (' + esc(o.status.toLowerCase()) + ')' : ''}</option>`).join('')}</select>${seg('tr_f', [['all', 'All parts'], ['risk', 'At risk'], ['late', 'Late'], ['noplan', 'Not planned'], ['done', 'Complete']], f)}${searchBox('tr', 'Search drawing or part…')}</div>
   ${blocks || `<div class="panel"><div class="empty"><b>${(S.data.orders || []).length ? 'Nothing matches' : 'No orders yet'}</b>${(S.data.orders || []).length ? 'Change the filters.' : 'Create an order and add its child parts to start tracking.'}</div></div>`}`;
   const after = () => { wireFilters(); $$('[data-part]').forEach(tr => { const open = () => openRoute(partById(tr.dataset.part)); tr.onclick = open; tr.onkeydown = e => { if (e.key === 'Enter') open(); }; }); };
   return { title: 'Part tracker', sub: `${fmtN(orders.length)} open order${orders.length === 1 ? '' : 's'}`, html, after };
@@ -1955,11 +1963,13 @@ function viewMore() {
    ===================================================================== */
 
 /* ================= 1. orders ================= */
+const noOpenOrders = () => (S.data.orders || []).length && !(S.data.orders || []).some(o => !ORDER_DONE.has(o.status));
 function viewOrders() {
-  const f = S.params.f || S.ui.o_f || 'open', q = S.ui.q_ord || '';
+  const f = S.params.f || S.ui.o_f || (noOpenOrders() ? 'done' : 'open'), q = S.ui.q_ord || '';
   let rows = (S.data.orders || []).filter(o => (f === 'all' || (f === 'open' ? !ORDER_DONE.has(o.status) : f === 'late' ? orderLight(o) === 'red' : ORDER_DONE.has(o.status))) && matchQ(o, q, ['order_no', 'project', 'customer', 'customer_po']));
   if (!S.ui.sort_ord) rows.sort((a, b) => f === 'open' ? (a.delivery_date || '9').localeCompare(b.delivery_date || '9') : (b.order_date || '').localeCompare(a.order_date || ''));
   const cols = [
+    ...(canEdit() && f !== 'open' ? [{ key: 'sel', label: '', cls: 'sel', html: o => ORDER_DONE.has(o.status) ? `<input type="checkbox" data-osel="${o.id}" aria-label="Select">` : '' }] : []),
     { key: 'order_no', label: 'Order', first: 1, html: o => `<span class="t">${esc(o.order_no)} · ${esc(o.project)}</span><small>${esc(o.customer || 'No customer')}${o.customer_po ? ' · PO ' + esc(o.customer_po) : ''}</small>` },
     { key: 'order_date', label: 'Ordered', hideM: 1, html: o => `<span class="num">${fmtD(o.order_date)}</span>` },
     { key: 'delivery_date', label: 'Delivery', html: o => { const d = o.delivery_date && !ORDER_DONE.has(o.status) ? daysBetween(today(), o.delivery_date) : null; return `<span class="num">${fmtD(o.delivery_date)}</span>${d != null ? `<small class="${d < 0 ? 'tred' : d <= 7 ? 'tamber' : ''}">${d < 0 ? -d + ' d late' : d + ' d left'}</small>` : o.delivered_date ? `<small>delivered ${fmtD(o.delivered_date)}</small>` : ''}`; } },
@@ -1968,10 +1978,14 @@ function viewOrders() {
     { key: 'order_value', label: 'Value', cls: 'r num', hideM: 1, html: o => moneyShort(num(o.order_value)) },
     { key: 'status', label: 'Status', html: o => lightChip(orderLight(o), o.status) },
   ];
-  const html = `${flowStrip('orders')}<p class="lede">Step 1 — the order register. Each jig or fixture order has a committed delivery date and a project owner who receives progress, delay and completion notifications. Open an order to run the whole workflow for it.</p>
+  const reopenBar = canEdit() && f !== 'open' && rows.some(o => ORDER_DONE.has(o.status)) ? `<div class="panel" style="margin-bottom:12px"><div class="body row"><span style="flex:1;min-width:220px">Tick orders that are <b>still running</b> and reopen them — they come back into the RM plan, process plan, tracker, alerts and dashboard. Set the new delivery date on each.</span><button class="btn pri" data-reopen disabled>Reopen selected</button></div></div>` : '';
+  const html = `${flowStrip('orders')}${reopenBar}<p class="lede">Step 1 — the order register. Each jig or fixture order has a committed delivery date and a project owner who receives progress, delay and completion notifications. Open an order to run the whole workflow for it.</p>
   <div class="toolbar">${seg('o_f', [['open', 'Open'], ['late', 'Late'], ['done', 'Delivered / closed'], ['all', 'All']], f)}${searchBox('ord', 'Search order, project, customer…')}<span class="spacer"></span>${expBtn('data-exp')}${addBtn('New order', 'data-new')}</div>
   ${rows.length ? dataTable('ord', rows, cols, { onRow: o => go('order?id=' + o.id), lamp: o => { const l = orderLight(o); return l === 'done' ? '' : l; } }) : `<div class="panel"><div class="empty"><b>${(S.data.orders || []).length ? 'No orders match' : 'No orders yet'}</b>${canEdit() ? 'Record the jig or fixture order with its delivery date.' : ''}</div></div>`}`;
-  const after = () => { wireFilters(); $$('[data-seg="o_f"] button').forEach(b => b.addEventListener('click', () => { if (S.params.f) go('orders'); })); $('[data-new]')?.addEventListener('click', () => newOrder()); $('[data-exp]').onclick = () => exportRows('Orders', rows, 'orders'); };
+  const after = () => {
+    $$('[data-osel]').forEach(i => { i.addEventListener('click', e => e.stopPropagation()); i.addEventListener('change', () => { const n = $$('[data-osel]:checked').length; const b = $('[data-reopen]'); if (b) { b.disabled = !n; b.textContent = n ? `Reopen ${n} order${n > 1 ? 's' : ''}` : 'Reopen selected'; } }); });
+    $('[data-reopen]')?.addEventListener('click', async () => { const ids = $$('[data-osel]:checked').map(i => i.dataset.osel); try { await DB.patchMany('orders', ids.map(id => ({ id, status: 'In production', alert_state: null }))); await logActivity('reopened', 'orders', null, `${ids.length} orders`); S.ui.o_f = 'open'; saveUI(); toast(`${ids.length} order(s) reopened. Open each one to check its delivery date.`); go('orders?f=open'); } catch (e) { fail(e); } });
+    wireFilters(); $$('[data-seg="o_f"] button').forEach(b => b.addEventListener('click', () => { if (S.params.f) go('orders'); })); $('[data-new]')?.addEventListener('click', () => newOrder()); $('[data-exp]').onclick = () => exportRows('Orders', rows, 'orders'); };
   return { title: 'Orders', sub: `${fmtN((S.data.orders || []).filter(o => !ORDER_DONE.has(o.status)).length)} open`, html, after };
 }
 function newOrder() {
@@ -2081,7 +2095,7 @@ async function useStock(parts) {
 
 /* ================= 2. RM plan ================= */
 function viewRMPlan() {
-  const f = S.params.f || S.ui.rm_f || 'open', q = S.ui.q_rm || '', oid = S.ui.rm_order || '', st = S.ui.rm_st || '';
+  const f = S.params.f || S.ui.rm_f || (noOpenOrders() ? 'all' : 'open'), q = S.ui.q_rm || '', oid = S.ui.rm_order || '', st = S.ui.rm_st || '';
   const openIds = new Set((S.data.orders || []).filter(o => !ORDER_DONE.has(o.status)).map(o => o.id));
   let rows = (S.data.parts || []).filter(p => (f === 'all' || (f === 'open' ? openIds.has(p.order_id) : f === 'To buy' ? rmStage(p) === 'To buy' && openIds.has(p.order_id) : !p.order_id)) && (!oid || p.order_id === oid) && (!st || rmStage(p) === st) && matchQ(p, q, ['drawing_no', 'ga_drawing_no', 'part_name', 'project', 'grade']));
   if (!S.ui.sort_rm) rows.sort((a, b) => (b.order_date || '').localeCompare(a.order_date || ''));
@@ -2254,7 +2268,7 @@ function openGRN(po, grn = null) {
 
 /* ================= 4. process plan ================= */
 function viewProcess() {
-  const f = S.params.f || S.ui.pr_f || 'open', q = S.ui.q_proc || '', oid = S.ui.pr_order || '', pc = S.ui.pr_proc || '', ot = S.ui.pr_ot || '';
+  const f = S.params.f || S.ui.pr_f || (noOpenOrders() ? 'all' : 'open'), q = S.ui.q_proc || '', oid = S.ui.pr_order || '', pc = S.ui.pr_proc || '', ot = S.ui.pr_ot || '';
   const cut = recentCut();
   const liveOrder = o => o.order_id ? !ORDER_DONE.has(orderById(o.order_id)?.status) : (o.sent_date || o.start_date || o.target_date || '') >= cut;
   let rows = (S.data.operations || []).filter(o => {
@@ -2680,13 +2694,15 @@ async function buildWorkflowFromLegacy(P, closedSet, log) {
   for (const j of P.jobs || []) touch(j.project, j.in_date, null, null);
   for (const g of P.grinding || []) touch(g.project, g.received_date, null, null);
   const byProj = new Map((S.data.orders || []).map(o => [norm(o.project), o]));
-  const newO = []; let seq = 0;
+  const newO = []; const cnt = {};
   const fy = nextNo('orders', 'order_no', 'SO').replace(/-\d+$/, '');
   const maxN = (S.data.orders || []).reduce((m, o) => { const x = /-(\d+)$/.exec(o.order_no || ''); return x ? Math.max(m, +x[1]) : m; }, 0);
   for (const [k, o] of proj) {
     if (byProj.has(k)) continue;
     const old = (o.last || o.first || '') < recentCut();
-    newO.push({ order_no: `${fy}-${String(maxN + (++seq)).padStart(3, '0')}`, order_date: o.first, project: o.name, customer: Object.keys(o.cust).sort((a, b) => o.cust[b] - o.cust[a])[0] || null, qty: 1, delivery_date: o.target, status: old ? 'Closed' : 'In production', alert_state: old ? 'late' : null });
+    const fyOf = d => { const x = parseD(d); if (!x) return fy; const fm = (num(S.settings.fy_start_month) || 4) - 1; const y = x.getMonth() >= fm ? x.getFullYear() : x.getFullYear() - 1; return 'SO-' + String(y).slice(2) + String(y + 1).slice(2); };
+    const pre = fyOf(o.first); cnt[pre] = (cnt[pre] ?? (pre === fy ? maxN : 0)) + 1;
+    newO.push({ order_no: `${pre}-${String(cnt[pre]).padStart(3, '0')}`, order_date: o.first, project: o.name, customer: Object.keys(o.cust).sort((a, b) => o.cust[b] - o.cust[a])[0] || null, qty: 1, delivery_date: o.target, status: old ? 'Closed' : 'In production', alert_state: old ? 'late' : null });
   }
   if (newO.length) { log(`Creating ${newO.length} orders…`); await DB.insert('orders', newO); } res.orders = newO.length;
   const orderOf = name => (S.data.orders || []).find(o => norm(o.project) === pk(name));
