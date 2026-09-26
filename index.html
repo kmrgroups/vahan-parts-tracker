@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>try{var u=JSON.parse(localStorage.getItem('cpt_ui')||'{}');document.documentElement.dataset.theme=u.theme2||'dark';}catch(e){document.documentElement.dataset.theme='dark';}</script>
+<style>html,body{background:#090d16;margin:0}html[data-theme="light"],html[data-theme="light"] body{background:#eef1f6}</style>
 <script>window.APP_CONFIG = /*CFG*/{"mode": "cloud", "url": "https://rmsswxrcdrsvlbgpurdp.supabase.co", "key": "sb_publishable_ZfS8ysfOpwIwR_CC0EqIhA_Oeo2J-Qm"}/*END*/;</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c1220">
@@ -9,7 +11,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <title>Child Parts Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=optional" rel="stylesheet">
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -306,12 +308,17 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
 .nitem small{color:var(--muted);display:block}
 
 /* ---------- welcome / login ---------- */
-.gate{min-height:100%;display:grid;grid-template-columns:1.1fr 1fr}
-.gate .art{background:var(--ink);color:#fff;padding:56px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.splash{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#94a3b8;font:14px/1.4 var(--f);text-align:center}
+.splash .logo{width:52px;height:52px;border-radius:14px;margin-bottom:6px}.splash .logo svg{width:26px;height:26px}
+.splash b{color:var(--strong);font-size:16px}.splash span{font-size:12.5px}
+.splash i{width:140px;height:3px;border-radius:3px;background:var(--line);overflow:hidden;position:relative;margin-top:8px}
+.splash i::after{content:"";position:absolute;inset:0;width:40%;background:#f59e0b;border-radius:3px;animation:load 1s ease-in-out infinite}
+@keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+.gate{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr}
+.gate .art{background:radial-gradient(900px 500px at 0% 0%,rgba(245,158,11,.12),transparent 60%),#0b101d;border-right:1px solid #1e293b;color:#fff;padding:56px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
 .gate .art h1{font-size:clamp(30px,4vw,48px);line-height:1.08;margin:0;font-weight:700;letter-spacing:-.02em;max-width:15ch}
-.gate .art p{color:#A9B6C3;max-width:44ch}
-.gate .art .stack{flex-direction:row;align-self:flex-start;margin-bottom:26px}
-.gate .art .stack a{width:64px;height:16px}
+.gate .art p{color:#94a3b8;max-width:44ch}
+.gate .art .logo{width:48px;height:48px;margin-bottom:28px}.gate .art .tagpill{display:inline-block;margin-bottom:14px}
 .gate .form{padding:56px;display:flex;flex-direction:column;justify-content:center;max-width:560px;width:100%;margin:0 auto}
 .gate .form h2{margin:0 0 6px;font-size:24px}
 .choice{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:var(--r-lg);padding:18px;margin-top:12px;cursor:pointer}
@@ -536,7 +543,7 @@ table.mx{width:100%;border-collapse:collapse;font-size:12px;min-width:1040px}
 </style>
 </head>
 <body>
-<div id="app"><div class="empty" style="padding-top:30vh">Loading…</div></div>
+<div id="app"><div class="splash"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1M12 18h1M7 18h1"/></svg></div><b>Child Parts Tracker</b><span>Loading your shop floor…</span><i></i></div></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <script>
 /* ================= utilities ================= */
@@ -1623,7 +1630,7 @@ function wireShell() {
   $$('[data-fa]').forEach(b => b.onclick = () => FLOOR[b.dataset.fa]());
   $('[data-theme]')?.addEventListener('click', () => {
     const cur = document.documentElement.dataset.theme || 'dark';
-    const nx = cur === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = nx; S.ui.theme = nx; saveUI(); render();
+    const nx = cur === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = nx; S.ui.theme2 = nx; saveUI(); render();
   });
   $('[data-bell]').addEventListener('click', toggleNotifications);
   $('[data-gs]')?.addEventListener('click', () => { const g = $('#gsearch'); g.classList.toggle('open'); g.querySelector('input').focus(); });
@@ -1666,6 +1673,7 @@ let charts = [];
 function render() {
   if (!S.mode) return;
   charts.forEach(c => c.destroy()); charts = []; dirtyIdx();
+  const vkey = S.route + '|' + (S.ui.dtab || ''); S._animate = vkey !== S._lastView; S._lastView = vkey;
   const scroll = window.scrollY;
   $('#app').innerHTML = shellHtml(); wireShell(); setHeaderH();
   const v = VIEWS[S.route] || VIEWS.dashboard;
@@ -1713,7 +1721,7 @@ function mkChart(id, cfg) {
   if (!window.Chart) { const el = document.getElementById(id); if (el) el.parentElement.innerHTML = '<div class="empty">Charts load when you’re online.</div>'; return; }
   Chart.defaults.font.family = cssVar('--f') || 'system-ui'; Chart.defaults.color = cssVar('--muted'); Chart.defaults.borderColor = cssVar('--line-2'); Chart.defaults.datasets.bar.maxBarThickness = 42;
   const el = document.getElementById(id); if (!el) return;
-  charts.push(new Chart(el, { ...cfg, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: cfg.legend || false, position: 'bottom', labels: { boxWidth: 10 } } }, ...cfg.options } }));
+  charts.push(new Chart(el, { ...cfg, options: { responsive: true, maintainAspectRatio: false, animation: S._animate ? { duration: 450 } : false, plugins: { legend: { display: cfg.legend || false, position: 'bottom', labels: { boxWidth: 10 } } }, ...cfg.options } }));
 }
 
 /* ================= shared visual pieces ================= */
@@ -3672,7 +3680,7 @@ const SETTINGS_TABS = {
 const VIEWS = { dashboard: viewDashboard, alerts: viewAlerts, mywork: viewMyWork, tasks: () => { S.params.tab = 'tasks'; return viewMyWork(); }, tracker: viewTracker, orders: viewOrders, order: viewOrder, rmplan: viewRMPlan, parts: viewRMPlan, purchase: viewPurchase, process: viewProcess, jobs: viewProcess, grinding: viewProcess, accounts: viewAccounts, materials: viewMaterials, suppliers: viewSuppliers, customers: viewCustomers, team: viewTeam, settings: viewSettings, more: viewMore };
 
 function gateArt(title, text) {
-  return `<div class="art"><div><div class="stack"><a class="lit red"></a><a class="lit amber"></a><a class="lit green"></a></div><h1>${esc(title)}</h1><p>${esc(text)}</p></div><p style="font-size:13px">Works on phones, tablets and computers. Free to run.</p></div>`;
+  return `<div class="art"><div><div class="logo">${S.settings?.logo ? `<img src="${esc(S.settings.logo)}" alt="">` : ICON.factory}</div><span class="tagpill">Mini-MES · Child parts</span><h1>${esc(title)}</h1><p>${esc(text)}</p></div><p style="font-size:12.5px;color:#64748b">Works on phones, tablets and computers.</p></div>`;
 }
 function showWelcome() {
   $('#app').innerHTML = `<div class="gate">${gateArt('Know where every child part is, today.', 'Order → raw material → purchase → process steps → delivery and payment. One live tracker your whole team shares.')}
@@ -3767,7 +3775,7 @@ async function start(cfg) {
 }
 
 async function boot() {
-  document.documentElement.dataset.theme = S.ui.theme || 'dark';
+  document.documentElement.dataset.theme = S.ui.theme2 || 'dark';
   const inv = readInvite(location.search);
   if (inv) { lsSet('cpt_cfg', inv); history.replaceState(null, '', location.pathname + location.hash); }
   const cfg = window.APP_CONFIG || lsGet('cpt_cfg', null);
