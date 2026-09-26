@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>window.APP_CONFIG = /*CFG*/null/*END*/;</script>
+<script>window.APP_CONFIG = /*CFG*/{"mode": "cloud", "url": "https://rmsswxrcdrsvlbgpurdp.supabase.co", "key": "sb_publishable_ZfS8ysfOpwIwR_CC0EqIhA_Oeo2J-Qm"}/*END*/;</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#16202B">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -452,7 +452,7 @@ const DEFAULT_SETTINGS = {
   due_soon_days: 2, order_warn_days: 7, alert_lookback_days: 120, default_credit_days: 30,
   weight_factor: 0.00000786, fy_start_month: 4, company_address: '', company_gst: '',
   emailjs: { service_id: '', template_id: '', public_key: '' },
-  whatsapp_auto: true, digest_auto: true, digest_last: '', app_url: ''
+  whatsapp_auto: true, digest_auto: true, digest_last: '', app_url: '', default_role: 'member'
 };
 
 /* Starter options — created once so a fresh workspace is usable. All editable in Settings → Lists. */
@@ -1585,6 +1585,10 @@ function viewDashboard() {
       <section class="panel"><header><h3>Open orders</h3><p>progress against delivery date</p></header><div class="body">${orderBoard(openOrders.slice().sort((a, b) => (a.delivery_date || '9').localeCompare(b.delivery_date || '9')).slice(0, 10))}</div></section>
       <section class="panel"><header><h3>Workload by owner</h3><p>open process steps</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_load"></canvas></div></div></section>
     </div>
+    <div class="grid2">
+      <section class="panel"><header><h3>Process steps completed</h3><p>by month · in-house vs suppliers</p></header><div class="body"><div class="chartbox" style="height:280px"><canvas id="c_thru"></canvas></div></div></section>
+      <section class="panel"><header><h3>Orders received</h3><p>by month · parts planned</p></header><div class="body"><div class="chartbox" style="height:280px"><canvas id="c_ord"></canvas></div></div></section>
+    </div>
     <div class="grid3">
       <section class="panel"><header><h3>Due in the next 7 days</h3></header><div class="body">${dueList()}</div></section>
       <section class="panel"><header><h3>Recent activity</h3></header><div class="body"><ul class="feed">${(S.data.activity || []).slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 9).map(a => `<li><div class="avatar" style="width:26px;height:26px;font-size:11px">${esc(initials(a.actor))}</div><div><b>${esc(a.actor)}</b> ${esc(a.action)} ${esc(a.summary || '')}</div><time>${ago(a.created_at)}</time></li>`).join('') || '<li class="muted">Changes by your team show up here.</li>'}</ul></div></section>
@@ -1594,6 +1598,13 @@ function viewDashboard() {
       const L = {}; for (const o of openOps) { const k = ownerName(o); L[k] ??= { g: 0, a: 0, r: 0 }; const l = opLight(o); l === 'red' ? L[k].r++ : l === 'amber' ? L[k].a++ : L[k].g++; }
       const ks = Object.keys(L).sort((a, b) => (L[b].r + L[b].a + L[b].g) - (L[a].r + L[a].a + L[a].g)).slice(0, 10);
       mkChart('c_load', { type: 'bar', data: { labels: ks.map(short), datasets: [{ label: 'Late', data: ks.map(k => L[k].r), backgroundColor: c.red, borderRadius: 3 }, { label: 'Due soon', data: ks.map(k => L[k].a), backgroundColor: c.amber, borderRadius: 3 }, { label: 'On track', data: ks.map(k => L[k].g), backgroundColor: c.green, borderRadius: 3 }] }, legend: true, options: { indexAxis: 'y', scales: { x: { stacked: true, ticks: { precision: 0 }, grid: { color: c.line } }, y: { stacked: true, grid: { display: false } } }, onClick: (e, els) => { if (els[0]) { S.ui.q_proc = ks[els[0].index]; saveUI(); go('process'); } } } });
+      const lab = k => MONTHS[+k.slice(5) - 1] + ' ' + k.slice(2, 4);
+      const TH = {}; for (const x of S.data.operations || []) { if (x.status !== 'Done' || !inR(x.done_date, R)) continue; const k = x.done_date.slice(0, 7); TH[k] ??= { i: 0, s: 0 }; x.owner_type === 'Supplier' ? TH[k].s++ : TH[k].i++; }
+      const tk = Object.keys(TH).sort().slice(-18);
+      mkChart('c_thru', { type: 'bar', data: { labels: tk.map(lab), datasets: [{ label: 'In-house', data: tk.map(k => TH[k].i), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Suppliers', data: tk.map(k => TH[k].s), backgroundColor: c.amber, borderRadius: 3 }] }, legend: true, options: { scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } } } } });
+      const OM = {}; for (const o of S.data.orders || []) { if (!inR(o.order_date, R)) continue; const k = o.order_date.slice(0, 7); OM[k] ??= { o: 0, p: 0 }; OM[k].o++; OM[k].p += partsOfOrder(o).length; }
+      const ok = Object.keys(OM).sort().slice(-18);
+      mkChart('c_ord', { data: { labels: ok.map(lab), datasets: [{ type: 'bar', label: 'Orders', data: ok.map(k => OM[k].o), backgroundColor: c.steel, borderRadius: 3, yAxisID: 'y' }, { type: 'line', label: 'Parts', data: ok.map(k => OM[k].p), borderColor: c.amber, backgroundColor: c.amber, tension: .3, pointRadius: 3, yAxisID: 'y1' }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } }, y1: { position: 'right', beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } } });
       $$('[data-order]').forEach(el => el.onclick = () => go('order?id=' + el.dataset.order));
       $$('[data-dueop]').forEach(el => el.onclick = () => { const op = S.data.operations.find(x => x.id === el.dataset.dueop); openRecord('operations', op); });
     };
@@ -2787,7 +2798,8 @@ create or replace function handle_new_user() returns trigger language plpgsql se
 begin
   insert into profiles (id, email, full_name, role)
   values (new.id, lower(new.email), coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-          case when (select count(*) from profiles) = 0 then 'admin' else 'viewer' end)
+          case when (select count(*) from profiles) = 0 then 'admin'
+               else coalesce((select value #>> '{}' from app_settings where key = 'default_role' and value #>> '{}' in ('editor','member','viewer')), 'member') end)
   on conflict (id) do nothing;
   return new;
 end $$;
@@ -3005,11 +3017,24 @@ const SETTINGS_TABS = {
       const localCount = ['orders', 'parts', 'operations', 'jobs', 'grinding'].reduce((s, t) => s + lsGet('cpt_t_' + t, []).length, 0);
       return {
         html: `<section class="panel"><header><h3>Connected</h3><span class="chip green">Live</span></header><div class="body"><dl class="kv"><dt>Database</dt><dd class="mono">${esc(S.cfg.url)}</dd><dt>Signed in as</dt><dd>${esc(S.profile?.email)} (${esc(myRole())})</dd></dl>
+        <h4 style="margin:18px 0 6px">One web address for everyone</h4>${window.APP_CONFIG ? `<p style="font-size:14px;margin-top:0"><span class="chip green">Built in</span> Anyone who opens <b>${esc(appBase() || location.origin)}</b> on any device goes straight to the sign-in screen and can create an account.</p>` : `<p class="muted" style="font-size:14px;margin-top:0">Right now a new device must use the invite link below. To make the plain web address open the sign-in screen on <b>every</b> device, download this file and upload it to GitHub in place of your current <code>index.html</code>. The file contains only the database address and publishable key, which are designed to be public; your data stays protected by sign-in.</p><button class="btn pri" id="bake">${ICON.down}Download index.html for GitHub</button>`}
+        <div class="field" style="margin-top:14px;max-width:360px"><label for="drole">New sign-ups start as</label><select id="drole" class="sel">${[['member', 'Member — updates their own work'], ['editor', 'Editor — can plan and edit everything'], ['viewer', 'Viewer — can only look']].map(([v, l]) => `<option value="${v}" ${(S.settings.default_role || 'member') === v ? 'selected' : ''}>${l}</option>`).join('')}</select><div class="hint">You can change anyone’s role later in Users &amp; access.</div></div>
         <h4 style="margin:18px 0 6px">Invite your team</h4>${appLink('') ? `<p class="muted" style="font-size:14px;margin-top:0">Anyone who opens this link on a phone, tablet or computer is connected automatically and can sign up. Nobody pastes keys or edits any file.</p><div class="field"><input id="inv" readonly value="${esc(appLink(''))}" onclick="this.select()"></div><div class="row" style="margin-top:10px"><button class="btn pri" id="ci">Copy invite link</button><a class="btn wa" target="_blank" rel="noopener" href="${esc(waLink('', `Please join our parts tracker (tap to open, then create your account): ${appLink('')}`))}">${ICON.wa}Share on WhatsApp</a></div>` : `<p class="muted" style="font-size:14px;margin-top:0">You opened the app straight from a file, so it has no web address yet. Upload the file to your website or a free host, open it from there, connect, and your invite link will appear here. Or type the web address in <a href="#/settings?tab=company">Company &amp; look → App web address</a>.</p>`}
         ${localCount ? `<h4 style="margin:18px 0 6px">Trial data on this device</h4><p class="muted" style="font-size:14px;margin-top:0">${fmtN(localCount)} records from your trial are still in this browser.</p><button class="btn" id="mv">${ICON.up}Copy trial data into the cloud</button>` : ''}
         <h4 style="margin:18px 0 6px">Database setup script</h4><p class="muted" style="font-size:14px;margin-top:0">Run again after app updates — it only adds what’s missing.</p><button class="btn" id="cs">Copy setup script</button>
         <p style="margin-top:18px"><button class="btn ghost danger" id="dc">Disconnect this device</button></p></div></section>`,
         after() {
+          $('#drole')?.addEventListener('change', async e => { try { await DB.setSetting('default_role', e.target.value); applySettings(); toast('Saved. If new people still start as viewers, run the setup script once more in Supabase.'); } catch (x) { fail(x); } });
+          $('#bake')?.addEventListener('click', async () => {
+            try {
+              const src = await (await fetch(location.href.split('#')[0].split('?')[0], { cache: 'no-store' })).text();
+              if (!/\/\*CFG\*\/[\s\S]*?\/\*END\*\//.test(src)) throw new Error('Could not read the app file from this address.');
+              const cfg = JSON.stringify({ mode: 'cloud', url: S.cfg.url, key: S.cfg.key }).replace(/</g, '\u003c');
+              const out = src.replace(/\/\*CFG\*\/[\s\S]*?\/\*END\*\//, '/*CFG*/' + cfg + '/*END*/');
+              const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out], { type: 'text/html' })); a.download = 'index.html'; document.body.appendChild(a); a.click(); a.remove();
+              toast('Downloaded index.html. Upload it to GitHub (Add file → Upload files → Commit). After ~30 seconds every device opening your address sees the sign-in screen.', [], 15000);
+            } catch (x) { fail(x, 'Download failed'); }
+          });
           $('#ci')?.addEventListener('click', () => { navigator.clipboard?.writeText(appLink('')); toast('Invite link copied.'); });
           $('#cs').onclick = () => { navigator.clipboard?.writeText(SETUP_SQL); toast('Setup script copied.'); };
           $('#dc').onclick = async () => { if (!(await confirmBox('Disconnect this device?', 'You can reconnect any time with the same project URL and key.', 'Disconnect'))) return; lsSet('cpt_cfg', null); localStorage.removeItem('cpt_cfg'); await sb.auth.signOut(); location.hash = ''; location.reload(); };
