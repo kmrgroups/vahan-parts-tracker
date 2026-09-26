@@ -4,6 +4,7 @@ create extension if not exists pgcrypto;
 
 create table if not exists app_settings (key text primary key, value jsonb, updated_at timestamptz default now());
 create table if not exists profiles (id uuid primary key references auth.users on delete cascade, email text, full_name text, role text default 'viewer', created_at timestamptz default now());
+alter table profiles alter column role set default 'none';
 create table if not exists team (id uuid primary key default gen_random_uuid(), name text not null, phone text, email text, tags text[] default '{}', wa_apikey text, notify_email boolean default true, notify_whatsapp boolean default true, active boolean default true, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists masters (id uuid primary key default gen_random_uuid(), category text not null, value text not null, extra jsonb default '{}', sort int default 0, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists suppliers (id uuid primary key default gen_random_uuid(), name text not null, contact_person text, address text, process text, phone text, email text, location_url text, credit_days numeric, gst_no text, active boolean default true, created_at timestamptz default now(), updated_at timestamptz default now());
@@ -28,30 +29,44 @@ create index if not exists ops_part on operations (part_id);
 create index if not exists ops_order on operations (order_id);
 create index if not exists notif_to on notifications (recipient_email, created_at desc);
 
+-- CallMeBot keys: kept out of the team table so only admins and editors can read them
+create table if not exists team_secrets (team_id uuid primary key references team(id) on delete cascade, wa_apikey text, updated_at timestamptz default now());
+insert into team_secrets (team_id, wa_apikey) select id, wa_apikey from team where coalesce(wa_apikey, '') <> ''
+  on conflict (team_id) do update set wa_apikey = excluded.wa_apikey, updated_at = now();
+update team set wa_apikey = null where wa_apikey is not null;
+
+-- document numbers must be unique (two people saving at the same moment). Skipped with a notice if duplicates already exist.
+do $$ begin
+  begin execute 'create unique index if not exists orders_no_uq on orders (order_no) where order_no is not null'; exception when others then raise notice 'orders_no_uq skipped: duplicate order numbers exist'; end;
+  begin execute 'create unique index if not exists po_no_uq on purchase_orders (po_no) where po_no is not null'; exception when others then raise notice 'po_no_uq skipped: duplicate PO numbers exist'; end;
+  begin execute 'create unique index if not exists grn_no_uq on grns (grn_no) where grn_no is not null'; exception when others then raise notice 'grn_no_uq skipped: duplicate GRN numbers exist'; end;
+end $$;
+
 -- role of the signed-in person: admin | editor | member | viewer
 create or replace function app_role() returns text language sql stable security definer set search_path = public as
 $$ select coalesce((select role from profiles where id = auth.uid()), 'none') $$;
 create or replace function my_team_id() returns uuid language sql stable security definer set search_path = public as
 $$ select id from team where lower(email) = lower(auth.jwt()->>'email') limit 1 $$;
 
--- first person to sign up becomes admin, everyone after starts as viewer
+-- first person to sign up becomes admin; everyone after waits with no access ('none') until an admin gives them a role
 create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
 begin
   insert into profiles (id, email, full_name, role)
   values (new.id, lower(new.email), coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-          case when (select count(*) from profiles) = 0 then 'admin' else 'viewer' end)
+          case when (select count(*) from profiles) = 0 then 'admin'
+               else coalesce((select value #>> '{}' from app_settings where key = 'default_role' and value #>> '{}' in ('none','editor','member','viewer')), 'none') end)
   on conflict (id) do nothing;
   return new;
 end $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute function handle_new_user();
 insert into profiles (id, email, full_name, role)
-  select u.id, lower(u.email), split_part(u.email, '@', 1), case when row_number() over (order by u.created_at) = 1 and not exists (select 1 from profiles) then 'admin' else 'viewer' end
+  select u.id, lower(u.email), split_part(u.email, '@', 1), case when row_number() over (order by u.created_at) = 1 and not exists (select 1 from profiles) then 'admin' else 'none' end
   from auth.users u on conflict (id) do nothing;
 
 -- row level security
 do $$ declare t text; begin
-  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks','notifications','activity','app_settings','profiles'] loop
+  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks','notifications','activity','app_settings','profiles','team_secrets'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists "read" on %I', t);
     execute format('drop policy if exists "write" on %I', t);
@@ -60,9 +75,21 @@ do $$ declare t text; begin
   foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks'] loop
     execute format('create policy "write" on %I for all to authenticated using (app_role() in (''admin'',''editor'')) with check (app_role() in (''admin'',''editor''))', t);
   end loop;
-  foreach t in array array['notifications','activity'] loop
-    execute format('create policy "write" on %I for all to authenticated using (app_role() <> ''none'') with check (app_role() <> ''none'')', t);
-  end loop;
+  -- CallMeBot keys: admins and editors only (replaces the general read policy)
+  execute 'drop policy if exists "read" on team_secrets';
+  execute 'create policy "write" on team_secrets for all to authenticated using (app_role() in (''admin'',''editor'')) with check (app_role() in (''admin'',''editor''))';
+  -- notifications: anyone with access may send; each person reads and marks only their own
+  execute 'drop policy if exists "read" on notifications';
+  execute 'drop policy if exists "mine" on notifications';
+  execute 'drop policy if exists "tidy" on notifications';
+  execute 'create policy "read" on notifications for select to authenticated using (lower(recipient_email) = lower(auth.jwt()->>''email''))';
+  execute 'create policy "write" on notifications for insert to authenticated with check (app_role() <> ''none'')';
+  execute 'create policy "mine" on notifications for update to authenticated using (lower(recipient_email) = lower(auth.jwt()->>''email'')) with check (lower(recipient_email) = lower(auth.jwt()->>''email''))';
+  execute 'create policy "tidy" on notifications for delete to authenticated using (lower(recipient_email) = lower(auth.jwt()->>''email''))';
+  -- activity log: everyone with access reads and adds; only admins delete
+  execute 'create policy "write" on activity for insert to authenticated with check (app_role() <> ''none'')';
+  execute 'drop policy if exists "tidy" on activity';
+  execute 'create policy "tidy" on activity for delete to authenticated using (app_role() = ''admin'')';
   execute 'create policy "write" on app_settings for all to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
   execute 'create policy "write" on profiles for update to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
 end $$;
@@ -76,7 +103,7 @@ create policy "brand" on app_settings for select to anon using (key in ('company
 
 -- live updates for everyone
 do $$ declare t text; begin
-  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks','notifications','app_settings'] loop
+  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks','notifications','app_settings','team_secrets'] loop
     begin execute format('alter publication supabase_realtime add table %I', t); exception when others then null; end;
   end loop;
 end $$;
