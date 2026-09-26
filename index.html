@@ -414,6 +414,27 @@ html,body{overflow-x:clip;max-width:100%}.main,.view{min-width:0;max-width:100vw
 }
 @media (max-width:700px){.dt.mini .pcell{min-width:0;gap:4px}.dt.mini .pbar{min-width:0;height:6px}.dt.mini .pcell small{min-width:0;font-size:11px}}
 
+/* ---------- analytics dashboard ---------- */
+:root{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#4a3aa7;--s8:#e34948}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767}}
+:root[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767}
+.dgrid2,.dgrid3{display:grid;gap:16px;margin-bottom:16px}
+.dgrid2{grid-template-columns:repeat(2,minmax(0,1fr))}.dgrid3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:1200px){.dgrid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){.dgrid2,.dgrid3{grid-template-columns:1fr;gap:12px;margin-bottom:12px}}
+.dcard{min-width:0}.dcard>header{flex-wrap:wrap;row-gap:2px}.dcard>header p{flex-basis:100%}
+.dtabbar .seg{max-width:100%}
+.dash-head .kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:700px){.dash-head .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.dtabbar{flex-direction:row;flex-wrap:wrap}.dtabbar .seg:first-child{flex-basis:100%}.dtabbar .spacer{display:none}}
+.mx td .pcell{min-width:90px}
+@media (min-width:701px){table.mx{min-width:1180px}.mx .t.mono{white-space:nowrap}.mx td small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}}
+.mob-brand{display:none}
+.demo-banner{margin-bottom:16px;border-color:var(--amber);background:var(--amber-bg)}
+@media (max-width:900px){.mob-brand{display:flex;align-items:center;flex:none}.mob-brand img,.mob-brand .mark{width:34px;height:34px;border-radius:8px;object-fit:contain;background:#fff;border:1px solid var(--line-2)}.mob-brand .mark{display:grid;place-items:center;background:var(--steel);color:#fff;font-weight:700;font-size:13px;border:0}}
+.mecard{display:flex;gap:12px;align-items:center;padding:16px;margin-bottom:12px}
+.mecard img,.mecard .mark{width:48px;height:48px;border-radius:10px;object-fit:contain;background:#fff;border:1px solid var(--line-2);flex:none}
+.mecard .mark{display:grid;place-items:center;background:var(--steel);color:#fff;font-weight:700;border:0}
+
 </style>
 </head>
 <body>
@@ -467,7 +488,7 @@ const DEFAULT_SETTINGS = {
   due_soon_days: 2, order_warn_days: 7, alert_lookback_days: 120, default_credit_days: 30,
   weight_factor: 0.00000786, fy_start_month: 4, company_address: '', company_gst: '',
   emailjs: { service_id: '', template_id: '', public_key: '' },
-  whatsapp_auto: true, digest_auto: true, digest_last: '', app_url: '', default_role: 'none'
+  whatsapp_auto: true, digest_auto: true, digest_last: '', app_url: '', default_role: 'none', stuck_days: 7
 };
 
 /* Starter options — created once so a fresh workspace is usable. All editable in Settings → Lists. */
@@ -1467,7 +1488,7 @@ function shellHtml() {
     <div class="who"><div class="avatar">${esc(initials(m.name))}</div><div style="min-width:0"><div style="color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.name)}</div><small style="color:var(--ink-dim)">${esc({ admin: 'Admin', editor: 'Editor', member: 'Member', viewer: 'Viewer' }[myRole()] || 'No access yet')}</small></div>${S.mode === 'cloud' ? '<button data-signout>Sign out</button>' : ''}</div>
   </aside>
   <div class="main">
-    <header class="top"><div class="grow"><h1 id="ptitle"></h1><div class="sub" id="psub"></div></div>
+    <header class="top"><a class="mob-brand" href="#/more" aria-label="Menu and account">${S.settings.logo ? `<img src="${esc(S.settings.logo)}" alt="">` : `<span class="mark">${esc(initials(S.settings.company_name || S.settings.app_title))}</span>`}</a><div class="grow"><h1 id="ptitle"></h1><div class="sub" id="psub"></div></div>
       <div class="gsearch" id="gsearch">${ICON.search}<input placeholder="Search order, drawing no., part, supplier…" aria-label="Search everything"><div class="gresults hidden"></div></div>
       <button class="iconbtn only-mob" data-gs aria-label="Search">${ICON.search}</button>
       <button class="iconbtn" data-bell aria-label="Notifications">${ICON.bell}${unread ? `<span class="dot">${unread > 9 ? '9+' : unread}</span>` : ''}</button>
@@ -1606,6 +1627,288 @@ function flowStrip(active) {
   return `<nav class="flow" aria-label="Workflow">${st.map(([r, n, l, t, c]) => `<a href="#/${r}" class="${r === active ? 'on' : ''}"><b>${n}</b><span>${l}<small class="${c}">${esc(t)}</small></span></a>`).join('')}</nav>`;
 }
 
+/* ================= child-part state (where is each part, who has it, how long) ================= */
+const stuckDays = () => num(S.settings.stuck_days) ?? 7;
+const isRework = op => /rework|not ?ok|reject/i.test(op.inspection || '');
+const badQty = op => num(op.rejection_qty) || (isRework(op) ? num(op.qty) || 0 : 0);
+const ST_LABEL = { COMPLETED: 'Completed', SUPPLIER_PROCESSING: 'At supplier', IN_PROCESS: 'In process', QUEUED: 'Queued', MATERIAL_PENDING: 'Material pending', ROUTE_PENDING: 'Route pending', ON_HOLD: 'On hold', REWORK: 'Rework' };
+const ST_CLS = { COMPLETED: 'green', SUPPLIER_PROCESSING: 'steel', IN_PROCESS: 'steel', QUEUED: 'nodot', MATERIAL_PENDING: 'nodot', ROUTE_PENDING: 'amber', ON_HOLD: 'amber', REWORK: 'red' };
+function partState(p) {
+  const pr = partProgress(p), ops = pr.ops, rm = rmStage(p), c = computeRow('parts', p);
+  const active = ops.find(o => ['In progress', 'At supplier', 'On hold'].includes(o.status));
+  const cur = active || pr.next;
+  const nxt = cur ? ops.slice(ops.indexOf(cur) + 1).find(o => o.status !== 'Done') : null;
+  const doneOps = ops.filter(o => o.status === 'Done');
+  const lastDone = doneOps.slice().sort((a, b) => (b.done_date || '').localeCompare(a.done_date || ''))[0];
+  const complete = ops.length > 0 && doneOps.length === ops.length;
+  const started = ops.some(o => !['Planned', 'Assigned'].includes(o.status));
+  const rmOk = ['Received', 'From stock'].includes(rm);
+  const rw = !complete && ops.some(o => isRework(o) && (o.status !== 'Done' || o === lastDone));
+  let st, loc, since = null, who;
+  if (complete) { st = 'COMPLETED'; loc = 'Finished'; who = lastDone ? ownerName(lastDone) : '—'; }
+  else if (active && active.status === 'On hold') { st = 'ON_HOLD'; loc = 'On hold'; who = ownerName(active); since = active.start_date || active.sent_date || lastDone?.done_date; }
+  else if (active && (active.status === 'At supplier' || active.owner_type === 'Supplier')) { st = 'SUPPLIER_PROCESSING'; loc = 'Supplier'; who = ownerName(active); since = active.sent_date || active.start_date; }
+  else if (active) { st = 'IN_PROCESS'; loc = 'Machine shop'; who = ownerName(active); since = active.start_date || active.sent_date; }
+  else if (!started && !rmOk && ops.length) { st = 'MATERIAL_PENDING'; loc = 'Stores'; who = rm === 'Ordered' ? 'RM ordered' : 'Purchase'; since = p.order_date || (p.created_at || '').slice(0, 10); }
+  else if (!ops.length) { st = rmOk ? 'ROUTE_PENDING' : 'MATERIAL_PENDING'; loc = 'Stores'; who = rmOk ? 'Planner' : rm === 'Ordered' ? 'RM ordered' : 'Purchase'; since = rmOk ? p.rm_received_date || p.order_date : p.order_date || (p.created_at || '').slice(0, 10); }
+  else { st = 'QUEUED'; loc = cur.owner_type === 'Supplier' ? 'To send out' : 'Shop queue'; who = ownerName(cur); since = lastDone?.done_date || p.rm_received_date || p.order_date; }
+  if (rw) { st = 'REWORK'; loc = 'Rework'; }
+  const age = since ? Math.max(0, daysBetween(since, today()) ?? 0) : null;
+  const oc = ops.map(o => computeRow('operations', o));
+  const rmCost = c.actual_cost ?? c.planned_cost ?? 0, procAct = oc.reduce((s, o) => s + (o.status === 'Done' ? o.actual_cost ?? o.plan_cost ?? 0 : 0), 0);
+  const procPlan = oc.reduce((s, o) => s + (o.plan_cost || 0), 0);
+  return { p, pr, c, st, loc, cur, nxt, who, age, stuck: !complete && age != null && age > stuckDays(), late: pr.light === 'red', complete, n: ops.length, done: doneOps.length, rej: ops.reduce((s, o) => s + badQty(o), 0), qty: num(p.qty) || 0, rmCost, procAct, procPlan, cost: rmCost + procAct, plan: (c.planned_cost || 0) + procPlan };
+}
+const livePartList = () => { const open = new Set((S.data.orders || []).filter(o => !ORDER_DONE.has(o.status)).map(o => o.id)); return (S.data.parts || []).filter(p => open.has(p.order_id)); };
+const mxRank = x => (x.st === 'REWORK' ? 0 : x.stuck || x.late ? 1 : x.complete ? 4 : 2);
+const sortMatrix = list => list.sort((a, b) => mxRank(a) - mxRank(b) || (b.age ?? -1) - (a.age ?? -1));
+function matrixTable(list, empty) {
+  if (!list.length) return `<div class="empty" style="padding:26px 12px">${esc(empty)}</div>`;
+  return `<div class="tablewrap"><table class="dt mini mx"><thead><tr><th class="lamp"></th><th>Part</th><th>Order</th><th class="r">Qty</th><th>Steps</th><th>Where now</th><th>Current → next</th><th>With</th><th class="r">Age</th><th class="r">Cost to date</th><th>Status</th></tr></thead><tbody>${list.map(x => { const o = orderById(x.p.order_id); const l = x.st === 'REWORK' || x.late || x.stuck ? 'red' : ['ON_HOLD', 'ROUTE_PENDING'].includes(x.st) ? 'amber' : x.complete ? '' : 'green'; return `<tr data-mxp="${x.p.id}" tabindex="0"><td class="lamp ${l}"><i></i></td>
+    <td class="first" data-label="Part"><span class="t mono">${esc(x.p.drawing_no || '—')}</span><small>${esc(x.p.part_name || '')}${x.p.grade ? ' · ' + esc(x.p.grade) : ''}${x.c.planned_weight ? ' · ' + fmtN(x.c.planned_weight, 2) + ' kg' : ''}</small></td>
+    <td data-label="Order"><span class="ell">${esc(o?.order_no || '—')}</span><small class="ell">${esc(o?.project || x.p.project || '')}</small></td>
+    <td class="r num" data-label="Qty">${fmtN(x.qty)}${x.rej ? `<small class="tred">${fmtN(x.rej)} rej</small>` : ''}</td>
+    <td data-label="Steps"><div class="pcell">${pbar(x.pr.pct, x.pr.light)}</div><small>${x.done}/${x.n} done</small></td>
+    <td data-label="Where now"><span class="chip nodot">${esc(x.loc)}</span></td>
+    <td data-label="Current → next">${x.cur ? `<b style="color:var(--steel)">${esc(x.cur.process || 'Process')}</b> <span class="muted">→ ${esc(x.nxt?.process || 'Final')}</span>` : x.complete ? '<span class="tgreen">Completed</span>' : '<span class="muted">Route not planned</span>'}</td>
+    <td data-label="With">${esc(x.who || '—')}</td>
+    <td class="r num" data-label="Age">${x.age == null ? '—' : x.age + ' d'}${x.stuck ? '<small class="tred"><b>STUCK</b></small>' : x.late ? '<small class="tred"><b>LATE</b></small>' : ''}</td>
+    <td class="r num" data-label="Cost">${money(round(x.cost))}</td>
+    <td data-label="Status"><span class="chip ${ST_CLS[x.st]}">${esc(ST_LABEL[x.st])}</span></td></tr>`; }).join('')}</tbody></table></div>`;
+}
+const wireMatrix = () => $$('[data-mxp]').forEach(tr => { const open = () => openRoute(partById(tr.dataset.mxp)); tr.onclick = open; tr.onkeydown = e => { if (e.key === 'Enter') open(); }; });
+function exportMatrix() {
+  if (!window.XLSX) return toast('Excel library is still loading — try again in a moment.');
+  const rows = sortMatrix(livePartList().map(partState)).map(x => { const o = orderById(x.p.order_id); return { 'Drawing no.': x.p.drawing_no, 'Part name': x.p.part_name, Grade: x.p.grade, 'RM kg (plan)': x.c.planned_weight, Order: o?.order_no, Project: o?.project || x.p.project, Qty: x.qty, 'Steps done': x.done, 'Steps total': x.n, 'Rejected / rework qty': x.rej, 'Where now': x.loc, 'Current process': x.cur?.process || '', 'Next process': x.nxt?.process || '', With: x.who, 'Age (days)': x.age, Stuck: x.stuck ? 'Yes' : '', Late: x.late ? 'Yes' : '', 'RM cost': round(x.rmCost), 'Process cost to date': round(x.procAct), 'Cost to date': round(x.cost), 'Planned cost': round(x.plan), Status: ST_LABEL[x.st] }; });
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Child parts'); XLSX.writeFile(wb, `Child part status ${today()}.xlsx`);
+}
+
+/* ================= chart helpers (one axis per chart, fixed categorical order, status colours reserved) ================= */
+const SER = () => [1, 2, 3, 4, 5, 6, 7, 8].map(i => cssVar('--s' + i));
+const STC = () => ({ good: cssVar('--green'), warn: cssVar('--amber'), bad: cssVar('--red'), info: cssVar('--steel'), none: cssVar('--line'), muted: cssVar('--muted'), grid: cssVar('--line-2'), panel: cssVar('--panel'), text: cssVar('--text') });
+const axisMoney = v => moneyShort(v), axisPct = v => v + '%';
+const centerText = { id: 'centerText', afterDraw(ch, a, o) { if (!o || !o.text) return; const { ctx, chartArea: c } = ch; const x = (c.left + c.right) / 2, y = (c.top + c.bottom) / 2; ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = cssVar('--text'); ctx.font = `700 22px ${cssVar('--f')}`; ctx.fillText(o.text, x, y + 4); ctx.font = `500 11px ${cssVar('--f')}`; ctx.fillStyle = cssVar('--muted'); ctx.fillText(o.sub || '', x, y + 22); ctx.restore(); } };
+function cBar(id, labels, sets, o = {}) {
+  const k = STC();
+  mkChart(id, { type: 'bar', data: { labels, datasets: sets.map(s => ({ borderRadius: 4, borderSkipped: false, borderWidth: 0, maxBarThickness: 34, ...s })) }, legend: sets.length > 1, plugins: o.plugins,
+    options: { indexAxis: o.h ? 'y' : 'x', interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: sets.length > 1, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } }, tooltip: { callbacks: { label: c => ` ${c.dataset.label ? c.dataset.label + ': ' : ''}${o.money ? money(c.raw) : o.pct ? fmtN(c.raw, 1) + '%' : fmtN(c.raw, o.dec || 0) + (o.unit || '')}` } } },
+      scales: { [o.h ? 'x' : 'y']: { stacked: !!o.stack, beginAtZero: true, max: o.pct ? 100 : undefined, grid: { color: k.grid }, border: { display: false }, ticks: { precision: 0, callback: o.money ? axisMoney : o.pct ? axisPct : undefined } }, [o.h ? 'y' : 'x']: { stacked: !!o.stack, grid: { display: false }, border: { color: k.grid } } },
+      onClick: o.onClick ? (e, els) => els[0] && o.onClick(els[0].index) : undefined } });
+}
+function cDonut(id, labels, values, colors, center) {
+  const k = STC();
+  const keep = values.map((v, i) => i).filter(i => values[i] > 0);
+  mkChart(id, { type: 'doughnut', plugins: [centerText], data: { labels: keep.map(i => labels[i]), datasets: [{ data: keep.map(i => values[i]), backgroundColor: keep.map(i => colors[i]), borderColor: k.panel, borderWidth: 2, hoverOffset: 4 }] }, legend: true,
+    options: { cutout: '64%', plugins: { legend: { display: true, position: innerWidth < 700 ? 'bottom' : 'right', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, generateLabels: ch => { const d = ch.data; const tot = d.datasets[0].data.reduce((s, v) => s + v, 0) || 1; return d.labels.map((l, i) => ({ text: `${l}  ${Math.round(d.datasets[0].data[i] / tot * 100)}%`, fillStyle: d.datasets[0].backgroundColor[i], strokeStyle: d.datasets[0].backgroundColor[i], pointStyle: 'circle', fontColor: k.text, index: i })); } } }, centerText: center || {} } } });
+}
+/** Pareto on ONE axis: bars = each cause's share of the total (%), line = cumulative %. The 80% line marks the vital few. */
+function cPareto(id, labels, values) {
+  const k = STC(), tot = values.reduce((s, v) => s + v, 0) || 1; let cum = 0;
+  const share = values.map(v => round(v / tot * 100, 1)), cumu = values.map(v => round((cum += v) / tot * 100, 1));
+  mkChart(id, { data: { labels, datasets: [{ type: 'bar', label: 'Share of rejects', data: share, backgroundColor: labels.map((l, i) => cumu[i] - share[i] < 80 ? k.bad : cssVar('--s1')), borderRadius: 4, maxBarThickness: 40, order: 2 }, { type: 'line', label: 'Cumulative', data: cumu, borderColor: k.text, backgroundColor: k.text, borderWidth: 2, pointRadius: 4, tension: 0, order: 1 }, { type: 'line', label: '80% line', data: labels.map(() => 80), borderColor: k.muted, borderDash: [5, 4], borderWidth: 1, pointRadius: 0, order: 0 }] }, legend: true,
+    options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, sort: (a, b) => a.datasetIndex - b.datasetIndex } }, tooltip: { callbacks: { label: c => c.datasetIndex === 0 ? ` ${fmtN(values[c.dataIndex])} pcs · ${c.raw}% of rejects` : c.datasetIndex === 1 ? ` cumulative ${c.raw}%` : null } } }, scales: { y: { min: 0, max: 100, ticks: { callback: axisPct }, grid: { color: k.grid }, border: { display: false } }, x: { grid: { display: false } } } } });
+}
+function cRadar(id, axes, sets) {
+  const k = STC(), c = SER();
+  mkChart(id, { type: 'radar', data: { labels: axes, datasets: sets.map((s, i) => ({ label: s.label, data: s.data, borderColor: c[i], backgroundColor: c[i] + '22', borderWidth: 2, pointRadius: 3, pointBackgroundColor: c[i] })) }, legend: true,
+    options: { plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } }, tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${Math.round(c.raw)}` } } }, scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, display: false }, grid: { color: k.grid }, angleLines: { color: k.grid }, pointLabels: { font: { size: 11.5, weight: '600' }, color: k.text } } } } });
+}
+function cLine(id, labels, sets, o = {}) {
+  const k = STC();
+  mkChart(id, { type: 'line', data: { labels, datasets: sets.map(s => ({ borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: .25, fill: false, ...s })) }, legend: sets.length > 1,
+    options: { interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: sets.length > 1, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } }, tooltip: { callbacks: { label: c => ` ${c.dataset.label ? c.dataset.label + ': ' : ''}${o.pct ? c.raw + '%' : fmtN(c.raw)}` } } }, scales: { y: { min: o.pct ? (o.min ?? 0) : undefined, max: o.pct ? 100 : undefined, beginAtZero: !o.pct, ticks: { callback: o.pct ? axisPct : undefined, precision: 0 }, grid: { color: k.grid }, border: { display: false } }, x: { grid: { display: false } } } } });
+}
+/** Half-doughnut gauge for a single % headline. */
+function cGauge(id, pct, good = 90, warn = 75) {
+  const k = STC(); const v = pct == null ? 0 : Math.max(0, Math.min(100, pct)); const col = pct == null ? k.none : v >= good ? k.good : v >= warn ? k.warn : k.bad;
+  mkChart(id, { type: 'doughnut', plugins: [centerText], data: { labels: ['', ''], datasets: [{ data: [v, 100 - v], backgroundColor: [col, k.grid], borderWidth: 0 }] }, options: { rotation: -90, circumference: 180, cutout: '74%', plugins: { legend: { display: false }, tooltip: { enabled: false }, centerText: { text: pct == null ? '—' : fmtN(pct, 0) + '%', sub: '' } } } });
+}
+const noChart = (id, msg) => { const el = document.getElementById(id); if (el) el.parentElement.outerHTML = `<div class="empty" style="padding:30px 10px">${esc(msg)}</div>`; };
+const top6 = (obj, n = 6) => { const ks = Object.keys(obj).sort((a, b) => obj[b] - obj[a]); if (ks.length <= n) return [ks, ks.map(k => obj[k])]; const head = ks.slice(0, n - 1); return [[...head, 'Other'], [...head.map(k => obj[k]), ks.slice(n - 1).reduce((s, k) => s + obj[k], 0)]]; };
+
+/* ================= built-in demo data (load / flush) =================
+   Every demo record gets an id starting with de40de40- so it can be found and removed later
+   without touching real data. Demo people and suppliers have no phone or email, so nothing is sent. */
+const DEMO_PREFIX = 'de40de40-';
+const isDemo = id => String(id || '').startsWith(DEMO_PREFIX);
+const DEMO_TABLES = ['masters', 'materials', 'customers', 'suppliers', 'team', 'orders', 'parts', 'purchase_orders', 'grns', 'operations', 'tasks', 'activity'];
+const demoCount = () => DEMO_TABLES.reduce((s, t) => s + (S.data[t] || []).filter(r => isDemo(r.id)).length, 0);
+const demoLoaded = () => DEMO_TABLES.some(t => (S.data[t] || []).some(r => isDemo(r.id)));
+
+function buildDemo() {
+  let n = 0; const id = () => DEMO_PREFIX + '0000-4000-8000-' + (++n).toString(16).padStart(12, '0');
+  let seed = 20260926; const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const pick = a => a[Math.floor(rnd() * a.length)], vary = (v, p) => round(v * (1 + (rnd() * 2 - 1) * p), 2);
+  const T = today(), D = k => addDays(T, k), clampPast = d => d > T ? T : d;
+  const out = { masters: [], materials: [], customers: [], suppliers: [], team: [], orders: [], parts: [], purchase_orders: [], grns: [], operations: [], tasks: [], activity: [] };
+  const hasM = (c, v) => masters(c).some(m => norm(m.value) === norm(v));
+
+  // ---- lists
+  const PROC = { 'CNC Turning': { hour_rate: 550, in_house: true }, 'Milling': { rate_per_part: 350 }, 'Heat Treatment': { rate_per_part: 180 }, 'Wire Cut EDM': { rate_per_part: 650 }, 'Surface Grinding': { hour_rate: 450, in_house: true }, 'Cylindrical Grinding': { hour_rate: 500, in_house: true }, 'Blackening': { rate_per_part: 60 }, 'CMM Inspection': { rate_per_part: 250 } };
+  Object.entries(PROC).forEach(([v, extra], i) => { if (!hasM('process', v)) out.masters.push({ id: id(), category: 'process', value: v, extra, sort: 20 + i }); });
+  [['inspection', 'OK'], ['inspection', 'Rework'], ['inspection', 'Not OK'], ['part_type', 'Plate'], ['part_type', 'Rod'], ['part_type', 'Block'], ['hold_reason', 'Waiting for drawing revision'], ['hold_reason', 'Machine breakdown']].forEach(([c, v], i) => { if (!hasM(c, v)) out.masters.push({ id: id(), category: c, value: v, extra: {}, sort: 40 + i }); });
+
+  // ---- masters
+  const MAT = [['EN8', 110, 180, 100, 'Sri Balaji Steels'], ['EN31', 185, 40, 60, 'Metro Alloy Traders'], ['OHNS', 420, 26, 20, 'Metro Alloy Traders'], ['D2', 520, 8, 15, 'Metro Alloy Traders'], ['MS', 92, 320, 150, 'Sri Balaji Steels'], ['SS304', 265, 0, null, 'Sri Balaji Steels']];
+  for (const [g, r, st, mn, sp] of MAT) if (!materialByGrade(g)) out.materials.push({ id: id(), grade: g, rate_per_kg: r, stock_kg: st, min_stock_kg: mn, preferred_supplier: sp });
+  const CUS = [['Apex Auto Components', 'R. Suresh', 45], ['Sundaram Fixtures & Gauges', 'K. Anand', 30], ['Kaveri Press Tools', 'M. Lakshmi', 60]];
+  for (const [nm, cp, cd] of CUS) if (!customerByName(nm)) out.customers.push({ id: id(), name: nm, contact_person: cp, credit_days: cd, address: 'Bengaluru' });
+  const SUP = [['Sri Balaji Steels', 'Raw material', 30], ['Metro Alloy Traders', 'Raw material', 45], ['Precision Technology', 'Milling', 30], ['Harisha Industry', 'Heat Treatment', 30], ['FAZ Tooling', 'Wire Cut EDM', 30], ['Unique Measurement Service', 'CMM Inspection', 15], ['Balaji Blackening & Engraving', 'Blackening', 15]];
+  for (const [nm, pr, cd] of SUP) if (!supplierByName(nm)) out.suppliers.push({ id: id(), name: nm, process: pr, contact_person: 'Demo contact', credit_days: cd, address: 'Peenya Industrial Area, Bengaluru', active: true });
+  const TEAM = [['Karthik (demo)', ['Planner', 'Manager']], ['Murugan (demo)', ['Machine operator']], ['Selvi (demo)', ['Moves parts']], ['Ramesh (demo)', ['Purchase']], ['Priya (demo)', ['Accounts']]];
+  const tm = TEAM.map(([nm, tags]) => { const r = { id: id(), name: nm, tags, notify_email: false, notify_whatsapp: false, active: true }; out.team.push(r); return r; });
+  const [planner, operator, mover, buyer] = tm;
+  const supFor = { 'Milling': 'Precision Technology', 'Heat Treatment': 'Harisha Industry', 'Wire Cut EDM': 'FAZ Tooling', 'CMM Inspection': 'Unique Measurement Service', 'Blackening': 'Balaji Blackening & Engraving' };
+
+  // ---- orders: finished history → live work → just received
+  const ORD = [
+    { p: 'Welding fixture — lever gear shift', c: 0, od: -150, dd: -110, f: 1, st: 'Closed', del: -112, inv: 1, paid: 1 },
+    { p: 'Drill jig — mounting bracket', c: 1, od: -120, dd: -80, f: 1, st: 'Delivered', del: -73, inv: 1, paid: .5 },
+    { p: 'Coining press tool OP60', c: 2, od: -95, dd: -50, f: 1, st: 'Delivered', del: -51, inv: 1, paid: 0 },
+    { p: 'Checking fixture — wheel hub', c: 0, od: -58, dd: -3, f: .8, st: 'In production' },
+    { p: 'Assembly fixture — seat frame', c: 1, od: -36, dd: 6, f: .5, st: 'In production' },
+    { p: 'Trim die — side bracket', c: 2, od: -21, dd: 21, f: .2, st: 'In production' },
+    { p: 'Gauge set — output shaft', c: 0, od: -5, dd: 32, f: 0, st: 'Open' },
+  ];
+  const PARTS = [['BASE PLATE', 'Plate', 'MS', [320, 220, 25]], ['LOCATING BLOCK', 'Block', 'EN8', [80, 60, 40]], ['CLAMP ARM', 'Plate', 'EN8', [180, 40, 20]], ['LOCATING PIN', 'Rod', 'EN31', [25, 70]], ['REST PAD', 'Block', 'EN31', [50, 40, 20]], ['PUNCH', 'Rod', 'D2', [32, 90]], ['DIE INSERT', 'Block', 'D2', [120, 80, 35]], ['GUIDE BUSH', 'Rod', 'EN31', [40, 55]], ['SUPPORT PILLAR', 'Rod', 'MS', [45, 160]], ['TOP PLATE', 'Plate', 'MS', [300, 200, 30]], ['STRIPPER PLATE', 'Plate', 'OHNS', [200, 150, 16]], ['STOPPER', 'Block', 'EN8', [40, 30, 25]]];
+  const ROUTE = { Plate: ['Milling', 'Heat Treatment', 'Surface Grinding', 'Blackening'], Rod: ['CNC Turning', 'Heat Treatment', 'Cylindrical Grinding'], Block: ['Milling', 'Wire Cut EDM', 'Heat Treatment', 'Surface Grinding', 'CMM Inspection'] };
+  const fy = (() => { const t = new Date(), fm = (num(S.settings.fy_start_month) || 4) - 1; const y = t.getMonth() >= fm ? t.getFullYear() : t.getFullYear() - 1; return String(y).slice(2) + String(y + 1).slice(2); })();
+  let poN = 0, grnN = 0;
+  ORD.forEach((O, oi) => {
+    const cust = CUS[O.c][0], oid = id(), no = `DEMO-SO-${fy}-${String(oi + 1).padStart(3, '0')}`;
+    const count = 4 + (oi % 3) + (oi === 4 ? 2 : 0), list = [];
+    for (let j = 0; j < count; j++) {
+      const [nm, type, grade, dims] = PARTS[(oi * 3 + j) % PARTS.length];
+      const drg = `DM-${String(24 + oi).padStart(2, '0')}${String(oi + 3).padStart(2, '0')}-01-${String(j + 1).padStart(2, '0')}`;
+      const qty = type === 'Rod' ? pick([2, 4, 4, 6]) : pick([1, 1, 2]);
+      const p = { id: id(), order_id: oid, project: O.p, drawing_no: drg, ga_drawing_no: `DM-${String(24 + oi).padStart(2, '0')}${String(oi + 3).padStart(2, '0')}-00-00`, part_name: nm, type, grade, qty, order_date: D(O.od), target_date: D(O.dd - 4), rm_source: 'Purchase' };
+      if (type === 'Rod') { p.dia = dims[0]; p.length = dims[1]; } else { p.length = dims[0]; p.width = dims[1]; p.thk = dims[2]; }
+      Object.assign(p, computeRow('parts', p));
+      list.push(p);
+    }
+    // raw material: PO + GRN
+    const rmState = O.f === 0 ? 'none' : O.f < .3 ? 'partial' : 'all';
+    if (O.f === 0) { // new order: two parts on a sent PO, the rest still to buy; one from stock
+      list[list.length - 1].rm_source = 'From stock'; list[list.length - 1].rm_received_date = D(O.od + 2); list[list.length - 1].actual_weight = list[list.length - 1].planned_weight;
+    }
+    const buyList = O.f === 0 ? list.slice(0, 2) : list;
+    if (buyList.length) {
+      const bySup = {}; for (const p of buyList) { const sp = materialByGrade(p.grade)?.preferred_supplier || MAT.find(m => m[0] === p.grade)?.[4] || 'Sri Balaji Steels'; (bySup[sp] ??= []).push(p); }
+      for (const [sp, ps] of Object.entries(bySup)) {
+        const poId = id(), rate = g => num(materialByGrade(g)?.rate_per_kg) ?? MAT.find(m => m[0] === g)?.[1] ?? 100;
+        const lines = ps.map(p => ({ part_id: p.id, drawing_no: p.drawing_no, part_name: p.part_name, grade: p.grade, size: partSize(p), qty: p.qty, weight: round(p.planned_weight * 1.05, 3), rate: rate(p.grade), amount: round(p.planned_weight * 1.05 * rate(p.grade)) }));
+        const recvAll = rmState === 'all', recv = recvAll ? ps : rmState === 'partial' ? ps.slice(0, Math.ceil(ps.length / 2)) : [];
+        const po = { id: poId, po_no: `DEMO-PO-${fy}-${String(++poN).padStart(3, '0')}`, po_date: D(O.od + 1), supplier: sp, order_id: oid, expected_date: D(O.od + 4), status: recvAll ? 'Received' : recv.length ? 'Partly received' : 'Sent', lines, total: round(lines.reduce((s, l) => s + l.amount, 0)) };
+        out.purchase_orders.push(po); ps.forEach(p => { p.po_id = poId; });
+        if (recv.length) {
+          const gd = D(O.od + (oi === 1 ? 7 : 4)), gl = recv.map(p => { const l = lines.find(x => x.part_id === p.id); const w = round(l.weight * vary(1, .03), 3), r = vary(l.rate, .05); p.actual_weight = w; p.actual_rate = r; p.rm_received_date = gd; Object.assign(p, computeRow('parts', p)); return { ...l, weight: w, rate: r, amount: round(w * r) }; });
+          const val = gl.reduce((s, l) => s + l.amount, 0);
+          out.grns.push({ id: id(), grn_no: `DEMO-GRN-${fy}-${String(++grnN).padStart(3, '0')}`, grn_date: gd, po_id: poId, supplier: sp, lines: gl, bill_no: `INV-${4100 + grnN}`, bill_date: gd, bill_amount: round(val), credit_days: 30, paid_amount: O.f === 1 ? round(val) : oi === 3 ? round(val) : null, paid_date: O.f === 1 || oi === 3 ? D(O.od + 34) : null });
+        }
+      }
+    }
+    // process routes
+    for (const [j, p] of list.entries()) {
+      if (O.f === 0 && j >= list.length - 2) continue; // newest order: two parts have no route yet
+      const route = ROUTE[p.type]; const rmDay = p.rm_received_date ? daysBetween(T, p.rm_received_date) : null;
+      // plan each step inside the window between RM receipt and delivery, then let reality drift a little
+      const start0 = (rmDay ?? O.od + 5) + 1, end0 = O.dd - 2, span = Math.max(route.length * 2, end0 - start0);
+      const w = route.map(pr => PROC[pr].in_house ? 1 : 2), wt = w.reduce((s, x) => s + x, 0);
+      let cursor = start0, actual = start0, active = false;
+      route.forEach((proc, si) => {
+        const pm = PROC[proc], sup = !pm.in_house;
+        const pS = Math.round(cursor), pE = Math.round(cursor + span * w[si] / wt); cursor += span * w[si] / wt;
+        const op = { id: id(), order_id: oid, part_id: p.id, drawing_no: p.drawing_no, part_name: p.part_name, project: O.p, seq: si + 1, qty: p.qty, process: proc, owner_type: sup ? 'Supplier' : 'In-house', owner_member: sup ? null : operator.id, supplier: sup ? supFor[proc] : null, follow_up: sup ? mover.id : null, assigned_by: planner.name, target_date: D(pE), plan_rate: sup ? pm.rate_per_part : null, plan_hours: sup ? null : round(1.5 + rnd() * 2, 1) };
+        const st = Math.max(actual, pS - (rnd() < .3 ? 1 : 0)); // actual start follows the previous step
+        const slip = rnd() < .18 ? 1 + Math.floor(rnd() * 5) : rnd() < .35 ? -1 : 0;
+        const fin = Math.max(st + 1, pE + slip);
+        const canRun = rmDay != null && !active;
+        if (canRun && (O.f === 1 || fin <= -1)) {
+          op.status = 'Done'; op.progress = 100; op[sup ? 'sent_date' : 'start_date'] = D(Math.min(st, -1)); op.done_date = D(Math.min(fin, -1)); actual = Math.min(fin, -1) + 1;
+          if (sup) { op.actual_rate = vary(pm.rate_per_part, .12); } else { op.actual_hours = round(op.plan_hours * vary(1, .25), 2); op.start_time = '09:30'; }
+          const bad = rnd() < .12;
+          op.inspection = bad ? pick(['Rework', 'Rework', 'Not OK']) : 'OK';
+          if (bad) { op.rejection_qty = Math.max(1, Math.round(p.qty * (op.inspection === 'Not OK' ? 1 : .5))); if (sup) op.debit_amount = round(op.rejection_qty * pm.rate_per_part * .5); }
+          if (sup) { const c = computeRow('operations', op); op.bill_no = `JW-${1200 + n}`; op.bill_amount = round((c.actual_cost || 0) - (op.debit_amount || 0)); if (O.f === 1 && !(oi === 2 && rnd() < .6)) { op.paid_amount = op.bill_amount; op.paid_date = D(Math.min(fin + 25, -1)); } }
+        } else if (canRun && st <= 0) {
+          active = true; const r = rnd();
+          if (sup) { op.status = 'At supplier'; op.sent_date = D(Math.min(st, 0)); op.progress = 40; }
+          else if (r < .15) { op.status = 'On hold'; op.start_date = D(Math.min(st, 0)); op.hold_reason = pick(['Waiting for drawing revision', 'Machine breakdown']); op.progress = 20; }
+          else { op.status = 'In progress'; op.start_date = D(Math.min(st, 0)); op.progress = pick([25, 50, 75]); }
+        } else { active = true; op.status = rmDay == null && O.f === 0 ? 'Planned' : 'Assigned'; }
+        Object.assign(op, computeRow('operations', op)); delete op._hours; delete op.ageing;
+        if (op.status !== 'Done' && op.target_date) op.alert_state = op.target_date < T ? 'late' : daysBetween(T, op.target_date) <= (num(S.settings.due_soon_days) ?? 2) ? 'soon' : null;
+        out.operations.push(op);
+      });
+    }
+    // order header
+    const val = round(list.length * 42000 + oi * 15000, -3);
+    const o = { id: oid, order_no: no, order_date: D(O.od), customer: cust, customer_po: `PO/${String(4500 + oi * 37)}`, project: O.p, qty: 1, order_value: val, delivery_date: D(O.dd), owner: planner.id, status: O.st, credit_days: CUS[O.c][2] };
+    if (O.del != null) { o.delivered_date = D(O.del); }
+    if (O.inv) { o.invoice_no = `DEMO-INV-${String(oi + 1).padStart(3, '0')}`; o.invoice_date = D(O.del); o.invoice_amount = val; o.received_amount = round(val * O.paid) || null; o.received_date = O.paid ? D(O.del + 30) : null; }
+    if (!ORDER_DONE.has(O.st)) o.alert_state = o.delivery_date < T ? 'late' : daysBetween(T, o.delivery_date) <= (num(S.settings.order_warn_days) ?? 7) ? 'soon' : null;
+    out.orders.push(o); out.parts.push(...list);
+  });
+
+  // ---- tasks & activity
+  const dOps = out.operations;
+  out.tasks.push(
+    { id: id(), title: 'Get revised drawing for seat frame locating block', assigned_to: planner.id, assigned_by: 'Demo', due_date: D(-2), priority: 'High', status: 'Open', drawing_no: out.parts.find(p => p.project.includes('seat frame'))?.drawing_no },
+    { id: id(), title: 'Chase Harisha Industry for heat treatment lot', assigned_to: mover.id, assigned_by: planner.name, due_date: D(1), priority: 'Urgent', status: 'In progress' },
+    { id: id(), title: 'Raise PO for D2 and EN31 (gauge set)', assigned_to: buyer.id, assigned_by: planner.name, due_date: D(2), priority: 'Normal', status: 'Open' },
+    { id: id(), title: 'Calibrate surface grinder spindle', assigned_to: operator.id, assigned_by: planner.name, due_date: D(-6), priority: 'Normal', status: 'Done', completed_at: new Date(Date.now() - 7 * 864e5).toISOString() });
+  const recent = dOps.filter(o => o.done_date || o.sent_date || o.start_date).sort((a, b) => (b.done_date || b.sent_date || b.start_date).localeCompare(a.done_date || a.sent_date || a.start_date)).slice(0, 10);
+  recent.forEach((o, i) => out.activity.push({ id: id(), actor: o.owner_type === 'Supplier' ? mover.name : operator.name, action: 'updated', entity: 'operations', entity_id: o.id, summary: `${o.drawing_no} ${o.process} → ${o.status}`, created_at: new Date(Date.now() - (i * 5 + 1) * 3600e3).toISOString() }));
+  return out;
+}
+
+async function loadDemo() {
+  if (!isAdmin()) return toast('Only admins can load demo data.');
+  if (demoLoaded()) return toast('Demo data is already loaded. Remove it first to load a fresh set.');
+  if (!(await confirmBox('Load demo data?', `Adds 7 sample orders with child parts, raw material POs and GRNs, process routes at suppliers and in-house, inspections, rejections, bills, tasks and activity — dated around today. ${S.mode === 'cloud' ? 'Everyone signed in will see it. ' : ''}Demo people and suppliers have no phone or email, so no messages go out. Your real data is not changed, and you can remove all demo records in one click.`, 'Load demo data', false))) return;
+  const m = openModal(`<h2>Loading demo data…</h2><div class="progress" style="margin-top:14px"><i style="width:3%"></i></div><p class="muted" id="dmsg" style="font-size:13px">Preparing…</p>`);
+  try {
+    const d = buildDemo(); const steps = DEMO_TABLES.filter(t => d[t].length); let k = 0;
+    for (const t of DEMO_TABLES) {
+      if (!d[t].length) continue;
+      $('#dmsg', m) && ($('#dmsg', m).textContent = `Adding ${REC_NAMES[t] ? REC_NAMES[t] + 's' : t} (${d[t].length})…`);
+      await DB.insert(t, d[t]);
+      k++; const bar = $('.progress i', m); if (bar) bar.style.width = Math.round(k / steps.length * 100) + '%';
+    }
+    closeOverlay(); S.ui.dtab = 'overview'; saveUI(); go('dashboard'); render();
+    toast(`Demo data loaded: ${d.orders.length} orders, ${d.parts.length} parts, ${d.operations.length} process steps. Remove it any time from the dashboard banner or Settings → Import & backup.`, [], 12000);
+  } catch (e) { closeOverlay(); fail(e, 'Demo data stopped part-way — use “Remove demo data” to clean up, then try again'); render(); }
+}
+
+async function flushDemo() {
+  if (!isAdmin()) return toast('Only admins can remove demo data.');
+  if (!(await confirmBox('Remove all demo data?', `Deletes the ${fmtN(demoCount())} demo records (orders, parts, POs, GRNs, process steps, tasks, demo suppliers, customers, team and lists) plus any activity recorded against them. Your real data stays exactly as it is.`, 'Remove demo data'))) return;
+  const m = openModal(`<h2>Removing demo data…</h2><p class="muted" id="dmsg" style="font-size:13px">Please wait.</p>`);
+  try {
+    const demoTeam = new Set((S.data.team || []).filter(r => isDemo(r.id)).map(r => r.id));
+    // activity and notifications that point at demo records
+    const act = (S.data.activity || []).filter(r => isDemo(r.id) || isDemo(r.entity_id)).map(r => r.id);
+    if (act.length) await DB.remove('activity', act);
+    if (S.mode === 'cloud') { await sb.from('activity').delete().gte('entity_id', DEMO_PREFIX + '0000-0000-0000-000000000000').lte('entity_id', DEMO_PREFIX + 'ffff-ffff-ffff-ffffffffffff'); }
+    const nt = (S.data.notifications || []).filter(r => demoTeam.has(r.recipient_team) || isDemo(r.id)).map(r => r.id);
+    if (nt.length) await DB.remove('notifications', nt);
+    for (const t of [...DEMO_TABLES].reverse().filter(t => t !== 'activity')) {
+      const ids = (S.data[t] || []).filter(r => isDemo(r.id)).map(r => r.id);
+      $('#dmsg', m) && ($('#dmsg', m).textContent = `Removing ${t.replace('_', ' ')} (${ids.length})…`);
+      if (ids.length) await DB.remove(t, ids);
+    }
+    // real tasks or steps someone linked to demo items keep working — just drop the dangling link
+    const tk = (S.data.tasks || []).filter(t => demoTeam.has(t.assigned_to)).map(t => t.id); if (tk.length) await DB.remove('tasks', tk);
+    closeOverlay(); render(); toast('Demo data removed. Your workspace is back to your real data.');
+  } catch (e) { closeOverlay(); fail(e, 'Couldn’t remove everything — try again'); render(); }
+}
+function demoBanner() {
+  if (!demoLoaded()) return '';
+  return `<div class="panel demo-banner"><div class="body row"><span class="chip amber">Demo</span><span style="flex:1;min-width:200px"><b>Demo data is loaded</b> <span class="muted">— ${fmtN(demoCount())} sample records mixed in for training and customer demos. Remove them before going live.</span></span>${isAdmin() ? '<button class="btn sm danger" data-flushdemo>Remove demo data</button>' : ''}</div></div>`;
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-flushdemo]')) flushDemo(); if (e.target.closest('[data-loaddemo]')) loadDemo(); });
+
 /* ================= dashboard ================= */
 function hasDataIn(p) { const R = periodRange(p); return (S.data.orders || []).some(o => inR(o.order_date, R) || !ORDER_DONE.has(o.status)); }
 function historyBanner() {
@@ -1613,146 +1916,337 @@ function historyBanner() {
   const ds = all.map(o => o.order_date).filter(Boolean).sort();
   return `<div class="panel" style="margin-bottom:16px;border-color:var(--steel)"><div class="body row"><span style="flex:1;min-width:200px"><b>${fmtN(all.length)} old orders saved as history</b>${ds.length ? ` (${fmtD(ds[0])} – ${fmtD(ds[ds.length - 1])})` : ''}.<span class="only-desk"> Reopen any that are still running, or add a new order to start the live workflow.</span></span><a class="btn sm" href="#/orders?f=done">Reopen</a>${canEdit() ? `<a class="btn sm pri" href="#/orders">${ICON.plus}New order</a>` : ''}</div></div>`;
 }
+const DTABS = [['overview', 'Overview'], ['prod', 'Production'], ['sup', 'Suppliers'], ['qa', 'Quality'], ['mat', 'Material'], ['age', 'Ageing & stuck'], ['cost', 'Cost'], ['deliv', 'Delivery & cash']];
+const OLD_DTAB = { rm: 'mat', proc: 'cost', cust: 'deliv' };
 function viewDashboard() {
-  const tab = S.ui.dtab || 'overview', period = S.ui.period || (hasDataIn('fy') ? 'fy' : 'all'), R = periodRange(period);
-  const tabs = seg('dtab', [['overview', 'Overview'], ['rm', 'Raw material'], ['proc', 'Process cost'], ['cust', 'Customers'], ['sup', 'Suppliers']], tab);
+  let tab = OLD_DTAB[S.ui.dtab] || S.ui.dtab || 'overview'; if (!DTABS.some(d => d[0] === tab)) tab = 'overview';
+  const period = S.ui.period || (hasDataIn('fy') ? 'fy' : 'all'), R = periodRange(period);
+  const live = ['overview', 'age'].includes(tab);
+  const pname = { month: 'this month', '3m': 'last 3 months', fy: 'this FY', lfy: 'last FY', all: 'all time' }[period];
   const orders = (S.data.orders || []).filter(o => inR(o.order_date, R) || !ORDER_DONE.has(o.status));
   const oIds = new Set(orders.map(o => o.id));
   const parts = (S.data.parts || []).filter(p => oIds.has(p.order_id) || (!p.order_id && inR(p.order_date, R))).map(p => computeRow('parts', p));
   const ops = (S.data.operations || []).filter(o => oIds.has(o.order_id) || (!o.order_id && inR(o.done_date || o.sent_date || o.start_date, R)));
-  const kpi = (label, value, small, route, cls = '') => `<button class="kpi ${cls}" data-go="${route}"><span>${esc(label)}</span><b>${value}</b><small>${small || ''}</small></button>`;
+  const K = (label, value, sub, go, cls = '', ic = '') => `<button class="kpi ${cls}" data-go="${esc(go)}"><span>${ic ? `<i class="kic ${cls}">${ic}</i>` : ''}${esc(label)}</span><b>${value}</b><small>${sub || ''}</small></button>`;
+  const card = (title, sub, body, wide = '') => `<section class="panel dcard ${wide}"><header><h3>${esc(title)}</h3>${sub ? `<p>${sub}</p>` : ''}</header><div class="body">${body}</div></section>`;
+  const chart = (id, h = 260) => `<div class="chartbox" style="height:${h}px"><canvas id="${id}" role="img"></canvas></div>`;
   const empty = !(S.data.orders || []).length && !(S.data.parts || []).length;
-  const top = `<div class="toolbar">${tabs}<span class="spacer"></span>${seg('period', [['month', 'Month'], ['3m', '3 months'], ['fy', 'This FY'], ['lfy', 'Last FY'], ['all', 'All']], period)}${canEdit() ? `<button class="btn only-desk" data-digest title="Send the daily digest to managers now">${ICON.mail}<span class="only-desk">Digest</span></button>` : ''}</div>
-  ${historyBanner()}${empty ? `<div class="panel" style="margin-bottom:16px"><div class="empty"><b>Start with an order</b>Record a jig or fixture order, add its child parts, and the app takes you through purchase, processes, monitoring and billing.<br>${canEdit() ? `<a class="btn pri" href="#/orders">${ICON.plus}New order</a> ` : ''}${isAdmin() ? `<a class="btn" href="#/settings?tab=data">${ICON.up}Import Excel workbook</a>` : ''}</div></div>` : ''}`;
-  const after0 = () => { wireFilters(); $$('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go)); $('[data-digest]')?.addEventListener('click', () => sendDigest(true).catch(e => fail(e))); };
-  const C = () => ({ steel: cssVar('--steel'), amber: cssVar('--amber'), red: cssVar('--red'), green: cssVar('--green'), line: cssVar('--line'), muted: cssVar('--muted') });
-  const short = s => String(s || '—').length > 22 ? String(s).slice(0, 21) + '…' : String(s || '—');
+  const top = `<div class="toolbar dtabbar">${seg('dtab', DTABS, tab)}<span class="spacer"></span>${live ? `<span class="chip nodot">Live · ${fmtD(today())}</span>` : seg('period', [['month', 'Month'], ['3m', '3 months'], ['fy', 'This FY'], ['lfy', 'Last FY'], ['all', 'All']], period)}${tab === 'overview' || tab === 'age' ? `<button class="btn" data-xmx title="Download every live part's status">${ICON.down}<span class="only-desk">Excel</span></button>` : ''}${canEdit() ? `<button class="btn only-desk" data-digest title="Send the daily digest to managers now">${ICON.mail}Digest</button>` : ''}</div>
+  ${demoBanner()}${historyBanner()}${empty ? `<div class="panel" style="margin-bottom:16px"><div class="empty"><b>Start with an order</b>Record a jig or fixture order, add its child parts, and the dashboards fill in as work moves through purchase, processes, quality and billing.<br>${canEdit() ? `<a class="btn pri" href="#/orders">${ICON.plus}New order</a> ` : ''}${isAdmin() ? `<a class="btn" href="#/settings?tab=data">${ICON.up}Import Excel workbook</a> <button class="btn" data-loaddemo>Load demo data</button>` : ''}</div></div>` : ''}`;
+  const after0 = () => {
+    wireFilters(); wireMatrix();
+    $$('[data-go]').forEach(b => b.onclick = () => { const g = b.dataset.go; if (g.startsWith('tab:')) { S.ui.dtab = g.slice(4); saveUI(); render(); window.scrollTo(0, 0); } else go(g); });
+    $('[data-digest]')?.addEventListener('click', () => sendDigest(true).catch(e => fail(e)));
+    $('[data-xmx]')?.addEventListener('click', exportMatrix);
+    $$('[data-order]').forEach(el => el.onclick = () => go('order?id=' + el.dataset.order));
+    $$('[data-dueop]').forEach(el => el.onclick = () => openRecord('operations', S.data.operations.find(x => x.id === el.dataset.dueop)));
+    $$('[data-opid]').forEach(el => el.onclick = e => { if (e.target.closest('a,button')) return; openRecord('operations', S.data.operations.find(x => x.id === el.dataset.opid)); });
+  };
+  const short = s => String(s || '—').length > 20 ? String(s).slice(0, 19) + '…' : String(s || '—');
+  const lab = k => MONTHS[+k.slice(5) - 1] + ' ' + k.slice(2, 4);
+  const goProc = p => { S.ui.pr_proc = p; S.ui.pr_f = 'open'; S.ui.q_proc = ''; saveUI(); go('process'); };
   let html = '', after = after0;
+  const LS = ['overview', 'age'].includes(tab) ? livePartList().map(partState) : [];
+  const wip = LS.filter(x => !x.complete);
+  const BK = [['0–3 d', 0, 3], ['4–7 d', 4, 7], ['8–15 d', 8, 15], ['16–30 d', 16, 30], ['30+ d', 31, 1e9]];
+  const bucketCounts = () => BK.map(([, a, b]) => wip.filter(x => x.age != null && x.age >= a && x.age <= b).length);
+  const bucketColors = () => { const k = STC(); return BK.map(([, a]) => a > 15 ? k.bad : a > stuckDays() ? k.warn : k.good); };
+  const STATES = ['IN_PROCESS', 'SUPPLIER_PROCESSING', 'QUEUED', 'MATERIAL_PENDING', 'ROUTE_PENDING', 'ON_HOLD', 'REWORK', 'COMPLETED'];
 
   if (tab === 'overview') {
-    const al = computeAlerts(); const red = al.filter(a => a.lvl === 'red').length, amber = al.filter(a => a.lvl === 'amber').length;
-    const openOps = (S.data.operations || []).filter(o => o.status !== 'Done' && o.alert_state !== 'late' || (o.status !== 'Done' && o.order_id && !ORDER_DONE.has(orderById(o.order_id)?.status)));
-    const green = openOps.filter(o => opLight(o) === 'green').length;
     const openOrders = (S.data.orders || []).filter(o => !ORDER_DONE.has(o.status));
-    const deliv = orders.filter(o => o.delivered_date && o.delivery_date); const otd = deliv.length ? deliv.filter(o => o.delivered_date <= o.delivery_date).length / deliv.length * 100 : null;
-    const rmP = parts.reduce((s, p) => s + (p.planned_cost || 0), 0), rmA = parts.reduce((s, p) => s + (p.actual_cost || 0), 0), rmPrecv = parts.filter(p => p.actual_cost != null).reduce((s, p) => s + (p.planned_cost || 0), 0);
-    const dOps = ops.filter(o => o.status === 'Done').map(o => computeRow('operations', o));
-    const prP = dOps.filter(o => o.actual_cost != null).reduce((s, o) => s + (o.plan_cost || 0), 0), prA = dOps.reduce((s, o) => s + (o.actual_cost || 0), 0);
-    const recv = (S.data.orders || []).reduce((s, o) => s + Math.max(0, computeRow('orders', o).outstanding || 0), 0);
-    const pay = (S.data.operations || []).reduce((s, o) => s + opPayable(o), 0) + (S.data.grns || []).reduce((s, g) => s + grnPayable(g), 0);
-    const headline = red ? `${red} item${red > 1 ? 's' : ''} late — act today` : amber ? `${amber} item${amber > 1 ? 's need' : ' needs'} attention soon` : openOrders.length ? 'Everything is on track' : 'No open orders';
-    html = `${top}${flowStrip('')}
+    const done = LS.filter(x => x.complete).length, atSup = wip.filter(x => x.loc === 'Supplier').length, lateN = wip.filter(x => x.late).length, stuckN = wip.filter(x => x.stuck).length;
+    const liveOps = (S.data.operations || []).filter(o => o.order_id && !ORDER_DONE.has(orderById(o.order_id)?.status));
+    const doneQ = liveOps.filter(o => o.status === 'Done'), pq = doneQ.reduce((s, o) => s + (num(o.qty) || 0), 0), bq = doneQ.reduce((s, o) => s + badQty(o), 0);
+    const fpy = pq ? (pq - bq) / pq * 100 : null;
+    const actual = LS.reduce((s, x) => s + x.cost, 0), plan = LS.reduce((s, x) => s + x.plan, 0);
+    const al = computeAlerts(), red = al.filter(a => a.lvl === 'red').length, amber = al.filter(a => a.lvl === 'amber').length;
+    const lo = (S.data.operations || []).filter(liveOp);
+    const byP = {}; for (const o of lo) { const k = o.process || '—'; byP[k] ??= { g: 0, a: 0, r: 0 }; const l = opLight(o); l === 'red' ? byP[k].r++ : l === 'amber' ? byP[k].a++ : byP[k].g++; }
+    const pk = Object.keys(byP).sort((a, b) => (byP[b].r + byP[b].a + byP[b].g) - (byP[a].r + byP[a].a + byP[a].g)).slice(0, 8);
+    const mf = S.ui.mxf || 'attn';
+    const mxList = sortMatrix(LS.filter(x => mf === 'all' || (mf === 'attn' && !x.complete && (x.stuck || x.late || x.st === 'REWORK' || x.st === 'ON_HOLD')) || (mf === 'active' && !x.complete) || (mf === 'sup' && x.loc === 'Supplier') || (mf === 'done' && x.complete)));
+    html = `${top}
     <div class="dash-head">
-      <div class="andon" role="group" aria-label="Plant status">
-        <div class="stack">
-          <a href="#/alerts?lvl=red" class="${red ? 'lit' : ''} red"><small>Late</small>${red}</a>
-          <a href="#/alerts?lvl=amber" class="${amber ? 'lit' : ''} amber"><small>Attention</small>${amber}</a>
-          <a href="#/process?f=open" class="${green ? 'lit' : ''} green"><small>On track</small>${green}</a>
-        </div>
-        <div class="msg"><b>${esc(headline)}</b><span>${fmtN(openOrders.length)} open order${openOrders.length === 1 ? '' : 's'} · ${fmtN(openOps.length)} process steps running</span><br><a class="btn sm" href="#/alerts">Review alerts</a></div>
-      </div>
+      <div class="andon" role="group" aria-label="Plant status"><div class="stack"><a href="#/alerts?lvl=red" class="${red ? 'lit' : ''} red"><small>Late</small>${red}</a><a href="#/alerts?lvl=amber" class="${amber ? 'lit' : ''} amber"><small>Attention</small>${amber}</a><a href="#/tracker" class="${wip.length - lateN - stuckN > 0 ? 'lit' : ''} green"><small>On track</small>${Math.max(0, wip.length - wip.filter(x => x.late || x.stuck).length)}</a></div>
+        <div class="msg"><b>${red ? `${red} item${red > 1 ? 's' : ''} late — act today` : amber ? `${amber} item${amber > 1 ? 's need' : ' needs'} attention soon` : openOrders.length ? 'Everything is on track' : 'No open orders'}</b><span>${fmtN(openOrders.length)} open orders · ${fmtN(wip.length)} parts in work · ${fmtN(lo.length)} steps open</span><br><a class="btn sm" href="#/alerts">Review alerts</a></div></div>
       <div class="kpis">
-        ${kpi('Open orders', fmtN(openOrders.length), `${openOrders.filter(o => orderLight(o) === 'red').length} past delivery`, 'orders')}
-        ${kpi('On-time delivery', otd == null ? '—' : fmtN(otd, 0) + '%', deliv.length ? `${deliv.length} delivered` : 'record delivered dates', 'dashboard', otd != null && otd < 90 ? 'warn' : '')}
-        ${kpi('RM cost vs plan', rmPrecv ? `${rmA > rmPrecv ? '+' : ''}${fmtN((rmA - rmPrecv) / rmPrecv * 100, 1)}%` : '—', `plan ${moneyShort(rmP)} · actual ${moneyShort(rmA)}`, 'dashboard', rmA > rmPrecv * 1.05 ? 'warn' : '')}
-        ${kpi('Process cost vs plan', prP ? `${prA > prP ? '+' : ''}${fmtN((prA - prP) / prP * 100, 1)}%` : '—', `actual ${moneyShort(prA)} on done steps`, 'dashboard', prA > prP * 1.05 ? 'warn' : '')}
-        ${kpi('Receivables', moneyShort(recv), 'from customers', 'accounts')}
-        ${kpi('Payables', moneyShort(pay), 'to suppliers', 'accounts?tab=pay')}
+        ${K('Open orders', fmtN(openOrders.length), `${openOrders.filter(o => orderLight(o) === 'red').length} past delivery date`, 'orders', openOrders.some(o => orderLight(o) === 'red') ? 'warn' : '')}
+        ${K('Parts in work', fmtN(wip.length), `${fmtN(done)} of ${fmtN(LS.length)} complete (${LS.length ? Math.round(done / LS.length * 100) : 0}%)`, 'tracker')}
+        ${K('At suppliers', fmtN(atSup), 'parts outside for job work', 'tab:sup')}
+        ${K('Late / stuck parts', `${fmtN(lateN)} / ${fmtN(stuckN)}`, `stuck = no move for &gt; ${stuckDays()} days`, 'tab:age', lateN || stuckN ? 'warn' : '')}
+        ${K('First pass yield', fpy == null ? '—' : fmtN(fpy, 1) + '%', `${fmtN(bq)} pcs rejected / rework`, 'tab:qa', fpy != null && fpy < 95 ? 'warn' : '')}
+        ${K('Cost to date', moneyShort(actual), `planned ${moneyShort(plan)} for these parts`, 'tab:cost')}
       </div>
     </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>Open orders</h3><p>progress against delivery date</p></header><div class="body">${orderBoard(openOrders.slice().sort((a, b) => (a.delivery_date || '9').localeCompare(b.delivery_date || '9')).slice(0, 10))}</div></section>
-      <section class="panel"><header><h3>Workload by owner</h3><p>open process steps</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_load"></canvas></div></div></section>
+    <div class="dgrid3">
+      ${card('Where the parts are', 'live parts by status', chart('c_pst', 250))}
+      ${card('Order progress', 'open orders vs delivery date', chart('c_opr', 250))}
+      ${card('Ageing profile', `days at current location · stuck rule ${stuckDays()} d`, chart('c_age', 250))}
     </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>Process steps completed</h3><p>by month · in-house vs suppliers</p></header><div class="body"><div class="chartbox" style="height:280px"><canvas id="c_thru"></canvas></div></div></section>
-      <section class="panel"><header><h3>Orders received</h3><p>by month · parts planned</p></header><div class="body"><div class="chartbox" style="height:280px"><canvas id="c_ord"></canvas></div></div></section>
+    <div class="dgrid2">
+      ${card('Process load & bottlenecks', 'open steps per process · click a bar', chart('c_pl', 300))}
+      ${card('Workload by owner', 'open steps per person / supplier', chart('c_load', 300))}
     </div>
-    <div class="grid3">
-      <section class="panel"><header><h3>Due in the next 7 days</h3></header><div class="body">${dueList()}</div></section>
-      <section class="panel"><header><h3>Recent activity</h3></header><div class="body"><ul class="feed">${(S.data.activity || []).slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 9).map(a => `<li><div class="avatar" style="width:26px;height:26px;font-size:11px">${esc(initials(a.actor))}</div><div><b>${esc(a.actor)}</b> ${esc(a.action)} ${esc(a.summary || '')}</div><time>${ago(a.created_at)}</time></li>`).join('') || '<li class="muted">Changes by your team show up here.</li>'}</ul></div></section>
+    <section class="panel" style="margin-bottom:16px"><header style="flex-wrap:wrap"><h3>Child part status</h3><p>where each part is, with whom, for how long · click a row for its route</p><span class="spacer"></span>${seg('mxf', [['attn', `Needs attention ${wip.filter(x => x.stuck || x.late || x.st === 'REWORK' || x.st === 'ON_HOLD').length}`], ['active', `In work ${wip.length}`], ['sup', `At supplier ${atSup}`], ['done', `Complete ${done}`], ['all', 'All']], mf)}</header><div class="body" style="padding-top:8px">${matrixTable(mxList.slice(0, S.ui.dash_all ? 400 : 12), LS.length ? 'Nothing here. 👍' : 'Add child parts to an open order to see them here.')}${mxList.length > 12 ? `<div class="more">${S.ui.dash_all ? '' : `Top 12 of ${fmtN(mxList.length)}`}<button class="btn sm" data-dall>${S.ui.dash_all ? 'Show fewer' : 'Show all'}</button></div>` : ''}</div></section>
+    <div class="grid3" style="margin-top:0">
+      ${card('Due in the next 7 days', '', dueList())}
+      ${card('Recent activity', '', `<ul class="feed">${(S.data.activity || []).slice().sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 8).map(a => `<li><div class="avatar" style="width:26px;height:26px;font-size:11px">${esc(initials(a.actor))}</div><div><b>${esc(a.actor)}</b> ${esc(a.action)} ${esc(a.summary || '')}</div><time>${ago(a.created_at)}</time></li>`).join('') || '<li class="muted">Changes by your team show up here.</li>'}</ul>`)}
     </div>`;
     after = () => {
-      after0(); const c = C();
-      const L = {}; for (const o of openOps) { const k = ownerName(o); L[k] ??= { g: 0, a: 0, r: 0 }; const l = opLight(o); l === 'red' ? L[k].r++ : l === 'amber' ? L[k].a++ : L[k].g++; }
-      const ks = Object.keys(L).sort((a, b) => (L[b].r + L[b].a + L[b].g) - (L[a].r + L[a].a + L[a].g)).slice(0, 10);
-      if (!ks.length) { const el = document.getElementById('c_load'); if (el) el.parentElement.outerHTML = '<div class="empty" style="padding:18px 10px"><b>No open process steps</b>Workload appears here once orders are open and steps are assigned.</div>'; }
-      if (ks.length) mkChart('c_load', { type: 'bar', data: { labels: ks.map(short), datasets: [{ label: 'Late', data: ks.map(k => L[k].r), backgroundColor: c.red, borderRadius: 3 }, { label: 'Due soon', data: ks.map(k => L[k].a), backgroundColor: c.amber, borderRadius: 3 }, { label: 'On track', data: ks.map(k => L[k].g), backgroundColor: c.green, borderRadius: 3 }] }, legend: true, options: { indexAxis: 'y', scales: { x: { stacked: true, ticks: { precision: 0 }, grid: { color: c.line } }, y: { stacked: true, grid: { display: false } } }, onClick: (e, els) => { if (els[0]) { S.ui.q_proc = ks[els[0].index]; saveUI(); go('process'); } } } });
-      const lab = k => MONTHS[+k.slice(5) - 1] + ' ' + k.slice(2, 4);
-      const TH = {}; for (const x of S.data.operations || []) { if (x.status !== 'Done' || !inR(x.done_date, R)) continue; const k = x.done_date.slice(0, 7); TH[k] ??= { i: 0, s: 0 }; x.owner_type === 'Supplier' ? TH[k].s++ : TH[k].i++; }
-      const tk = Object.keys(TH).sort().slice(-18);
-      mkChart('c_thru', { type: 'bar', data: { labels: tk.map(lab), datasets: [{ label: 'In-house', data: tk.map(k => TH[k].i), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Suppliers', data: tk.map(k => TH[k].s), backgroundColor: c.amber, borderRadius: 3 }] }, legend: true, options: { scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } } } } });
-      const OM = {}; for (const o of S.data.orders || []) { if (!inR(o.order_date, R)) continue; const k = o.order_date.slice(0, 7); OM[k] ??= { o: 0, p: 0 }; OM[k].o++; OM[k].p += partsOfOrder(o).length; }
-      const ok = Object.keys(OM).sort().slice(-18);
-      mkChart('c_ord', { data: { labels: ok.map(lab), datasets: [{ type: 'bar', label: 'Orders', data: ok.map(k => OM[k].o), backgroundColor: c.steel, borderRadius: 3, yAxisID: 'y' }, { type: 'line', label: 'Parts', data: ok.map(k => OM[k].p), borderColor: c.amber, backgroundColor: c.amber, tension: .3, pointRadius: 3, yAxisID: 'y1' }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: c.line } }, y1: { position: 'right', beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } } });
-      $$('[data-order]').forEach(el => el.onclick = () => go('order?id=' + el.dataset.order));
-      $$('[data-dueop]').forEach(el => el.onclick = () => { const op = S.data.operations.find(x => x.id === el.dataset.dueop); openRecord('operations', op); });
+      after0(); const k = STC(), c = SER();
+      const cnt = STATES.map(s => LS.filter(x => x.st === s).length);
+      if (!LS.length) noChart('c_pst', 'No parts on open orders.'); else cDonut('c_pst', STATES.map(s => ST_LABEL[s]), cnt, [c[0], c[2], k.muted, c[3], c[6], k.warn, k.bad, k.good], { text: fmtN(LS.length), sub: 'parts' });
+      const oo = openOrders.slice().sort((a, b) => (a.delivery_date || '9').localeCompare(b.delivery_date || '9')).slice(0, 8);
+      if (!oo.length) noChart('c_opr', 'No open orders.'); else cBar('c_opr', oo.map(o => o.order_no), [{ label: '% complete', data: oo.map(o => orderProgress(o).pct), backgroundColor: oo.map(o => { const l = orderLight(o); return l === 'red' ? k.bad : l === 'amber' ? k.warn : k.good; }) }], { h: 1, pct: 1, onClick: i => go('order?id=' + oo[i].id) });
+      if (!wip.length) noChart('c_age', 'No parts in work.'); else cBar('c_age', BK.map(b => b[0]), [{ label: 'Parts', data: bucketCounts(), backgroundColor: bucketColors() }], { unit: ' parts', onClick: () => { S.ui.dtab = 'age'; saveUI(); render(); } });
+      if (!pk.length) noChart('c_pl', 'No open process steps on live orders.'); else cBar('c_pl', pk.map(short), [{ label: 'Late', data: pk.map(p => byP[p].r), backgroundColor: k.bad }, { label: 'Due soon / hold', data: pk.map(p => byP[p].a), backgroundColor: k.warn }, { label: 'On track', data: pk.map(p => byP[p].g), backgroundColor: k.good }], { h: 1, stack: 1, onClick: i => goProc(pk[i]) });
+      const L = {}; for (const o of lo) { const n = ownerName(o); L[n] ??= { g: 0, a: 0, r: 0 }; const l = opLight(o); l === 'red' ? L[n].r++ : l === 'amber' ? L[n].a++ : L[n].g++; }
+      const ks = Object.keys(L).sort((a, b) => (L[b].r + L[b].a + L[b].g) - (L[a].r + L[a].a + L[a].g)).slice(0, 8);
+      if (!ks.length) noChart('c_load', 'Workload appears once steps are assigned.'); else cBar('c_load', ks.map(short), [{ label: 'Late', data: ks.map(n => L[n].r), backgroundColor: k.bad }, { label: 'Due soon / hold', data: ks.map(n => L[n].a), backgroundColor: k.warn }, { label: 'On track', data: ks.map(n => L[n].g), backgroundColor: k.good }], { h: 1, stack: 1, onClick: i => { S.ui.q_proc = ks[i]; saveUI(); go('process'); } });
     };
   }
 
-  if (tab === 'rm') {
+  if (tab === 'prod') {
+    const lo = (S.data.operations || []).filter(liveOp);
+    const run = lo.filter(o => ['In progress', 'At supplier'].includes(o.status)), inh = lo.filter(o => o.status === 'In progress' && o.owner_type !== 'Supplier');
+    const q = lo.filter(o => ['Planned', 'Assigned'].includes(o.status)), hold = lo.filter(o => o.status === 'On hold'), late = lo.filter(o => opLight(o) === 'red');
+    const dn = (S.data.operations || []).filter(o => o.status === 'Done' && inR(o.done_date, R));
+    const onT = dn.filter(o => o.target_date), ot = onT.filter(o => o.done_date <= o.target_date).length;
+    const hrs = dn.map(o => computeRow('operations', o)).filter(o => o.owner_type === 'In-house').reduce((s, o) => s + (o._hours || 0), 0);
+    const W = {}; const w = k => W[k] ??= { q: 0, r: 0, s: 0, h: 0, l: 0, d: 0, days: 0, dn: 0 };
+    for (const o of lo) { const x = w(o.process || '—'); ['Planned', 'Assigned'].includes(o.status) ? x.q++ : o.status === 'At supplier' ? x.s++ : o.status === 'On hold' ? x.h++ : x.r++; if (opLight(o) === 'red') x.l++; }
+    for (const o of dn) { const x = w(o.process || '—'); x.d++; const d0 = o.start_date || o.sent_date; if (d0) { x.days += Math.max(0, daysBetween(d0, o.done_date)); x.dn++; } }
+    const wk = Object.keys(W).sort((a, b) => (W[b].q + W[b].r + W[b].s + W[b].h) - (W[a].q + W[a].r + W[a].s + W[a].h) || W[b].d - W[a].d);
+    const pill = (v, c) => v ? `<span class="chip ${c}">${v}</span>` : '<span class="muted">0</span>';
+    html = `${top}<div class="kpis wide">
+      ${K('Steps running', fmtN(run.length), `${fmtN(run.length - inh.length)} at suppliers · ${fmtN(inh.length)} in-house`, 'process?f=open')}
+      ${K('Queued', fmtN(q.length), 'planned / assigned, not started', 'process?f=open')}
+      ${K('Late steps', fmtN(late.length), 'past target date', 'alerts?lvl=red', late.length ? 'warn' : '')}
+      ${K('On hold', fmtN(hold.length), hold[0]?.hold_reason ? esc(hold[0].hold_reason) : 'waiting on something', 'process?f=open', hold.length ? 'warn' : '')}
+      ${K('Completed', fmtN(dn.length), `${pname} · ${fmtN(hrs, 0)} machine hours`, 'process?f=done')}
+      ${K('Steps on time', onT.length ? fmtN(ot / onT.length * 100, 0) + '%' : '—', `${ot} of ${onT.length} by target date`, 'process?f=done', onT.length && ot / onT.length < .85 ? 'warn' : '')}
+    </div>
+    <div class="dgrid2">
+      ${card('Work-in-process by process', 'open steps on live orders', chart('c_wip', 300))}
+      ${card('Steps completed per month', `in-house vs suppliers · ${pname}`, chart('c_thru', 300))}
+    </div>
+    <div class="dgrid3">
+      ${card('Open steps by status', 'all live orders', chart('c_sts', 250))}
+      ${card('Average days per step', `completed ${pname} · start → done`, chart('c_lt', 250))}
+      ${card('Steps on time', `${pname}`, `${chart('c_otg', 170)}<p class="muted" style="text-align:center;margin:4px 0 0;font-size:12.5px">${ot} of ${onT.length} completed steps met their target date</p>`)}
+    </div>
+    <section class="panel" style="margin-bottom:16px"><header><h3>Work-in-process table</h3><p>click a process to open it</p></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Process</th><th class="r">Queued</th><th class="r">Running</th><th class="r">At supplier</th><th class="r">On hold</th><th class="r">Late</th><th class="r">Done</th><th class="r">Avg days</th></tr></thead><tbody>${wk.map(k => { const x = W[k]; return `<tr data-procrow="${esc(k)}"><td class="first" data-label="Process"><span class="t">${esc(k)}</span></td><td class="r" data-label="Queued">${pill(x.q, 'nodot')}</td><td class="r" data-label="Running">${pill(x.r, 'steel')}</td><td class="r" data-label="At supplier">${pill(x.s, 'steel')}</td><td class="r" data-label="On hold">${pill(x.h, 'amber')}</td><td class="r" data-label="Late">${pill(x.l, 'red')}</td><td class="r num" data-label="Done">${fmtN(x.d)}</td><td class="r num" data-label="Avg days">${x.dn ? fmtN(x.days / x.dn, 1) : '—'}</td></tr>`; }).join('') || '<tr><td class="muted">No process steps yet.</td></tr>'}</tbody></table></div></div></section>
+    <div class="grid2" style="margin-top:0">${card('Due in the next 7 days', '', dueList())}${card('Open orders', 'progress vs delivery date', orderBoard((S.data.orders || []).filter(o => !ORDER_DONE.has(o.status)).sort((a, b) => (a.delivery_date || '9').localeCompare(b.delivery_date || '9')).slice(0, 10)))}</div>`;
+    after = () => {
+      after0(); const k = STC(), c = SER();
+      $$('[data-procrow]').forEach(tr => tr.onclick = () => goProc(tr.dataset.procrow));
+      const wk8 = wk.filter(p => W[p].q + W[p].r + W[p].s + W[p].h).slice(0, 8);
+      if (!wk8.length) noChart('c_wip', 'No open steps on live orders.'); else cBar('c_wip', wk8.map(short), [{ label: 'Running in-house', data: wk8.map(p => W[p].r), backgroundColor: c[0] }, { label: 'At supplier', data: wk8.map(p => W[p].s), backgroundColor: c[1] }, { label: 'Queued', data: wk8.map(p => W[p].q), backgroundColor: c[2] }, { label: 'On hold', data: wk8.map(p => W[p].h), backgroundColor: c[3] }], { h: 1, stack: 1, onClick: i => goProc(wk8[i]) });
+      const TH = {}; for (const x of dn) { const m = x.done_date.slice(0, 7); TH[m] ??= { i: 0, s: 0 }; x.owner_type === 'Supplier' ? TH[m].s++ : TH[m].i++; }
+      const tk = Object.keys(TH).sort().slice(-12);
+      if (!tk.length) noChart('c_thru', 'No completed steps in this period.'); else cBar('c_thru', tk.map(lab), [{ label: 'In-house', data: tk.map(m => TH[m].i), backgroundColor: c[0] }, { label: 'Suppliers', data: tk.map(m => TH[m].s), backgroundColor: c[1] }], { stack: 1 });
+      const sl = ['In progress', 'At supplier', 'Assigned', 'Planned', 'On hold'];
+      if (!lo.length) noChart('c_sts', 'No open steps.'); else cDonut('c_sts', sl, sl.map(s => lo.filter(o => o.status === s).length), [c[0], c[1], c[2], k.muted, k.warn], { text: fmtN(lo.length), sub: 'open steps' });
+      const lt = Object.keys(W).filter(p => W[p].dn).sort((a, b) => W[b].days / W[b].dn - W[a].days / W[a].dn).slice(0, 8);
+      if (!lt.length) noChart('c_lt', 'Needs start and done dates on completed steps.'); else cBar('c_lt', lt.map(short), [{ label: 'Avg days', data: lt.map(p => round(W[p].days / W[p].dn, 1)), backgroundColor: c[0] }], { h: 1, dec: 1, unit: ' d' });
+      cGauge('c_otg', onT.length ? ot / onT.length * 100 : null);
+    };
+  }
+
+  if (tab === 'sup') {
+    const out = (S.data.operations || []).filter(o => liveOp(o) && o.owner_type === 'Supplier' && ['At supplier', 'In progress', 'On hold'].includes(o.status));
+    const toSend = (S.data.operations || []).filter(o => liveOp(o) && o.owner_type === 'Supplier' && ['Planned', 'Assigned'].includes(o.status));
+    const daysOut = o => o.sent_date || o.start_date ? daysBetween(o.sent_date || o.start_date, today()) : null;
+    const withD = out.filter(o => daysOut(o) != null), avg = withD.length ? withD.reduce((s, o) => s + daysOut(o), 0) / withD.length : null;
+    const dnS = (S.data.operations || []).filter(o => o.owner_type === 'Supplier' && o.status === 'Done' && inR(o.done_date, R));
+    const SC = {}; const sc = k => SC[k] ??= { n: 0, ot: 0, tn: 0, q: 0, b: 0, days: 0, dn: 0, cost: 0 };
+    for (const o of dnS) { const x = sc(o.supplier || '—'); x.n++; x.q += num(o.qty) || 0; x.b += badQty(o); if (o.target_date && o.done_date) { x.tn++; if (o.done_date <= o.target_date) x.ot++; } const d0 = o.sent_date || o.start_date; if (d0) { x.days += Math.max(0, daysBetween(d0, o.done_date)); x.dn++; } x.cost += computeRow('operations', o).actual_cost ?? computeRow('operations', o).plan_cost ?? 0; }
+    for (const g of (S.data.grns || []).filter(g => inR(g.grn_date, R))) { const p = poById(g.po_id); if (!p?.expected_date) continue; const x = sc(g.supplier || '—'); x.tn++; if (g.grn_date <= p.expected_date) x.ot++; }
+    const pay = {}; for (const o of S.data.operations || []) { const v = opPayable(o); if (v) pay[o.supplier] = (pay[o.supplier] || 0) + v; } for (const g of S.data.grns || []) { const v = grnPayable(g); if (v) pay[g.supplier] = (pay[g.supplier] || 0) + v; }
+    const tn = Object.values(SC).reduce((s, x) => s + x.tn, 0), ot = Object.values(SC).reduce((s, x) => s + x.ot, 0), payT = Object.values(pay).reduce((s, v) => s + v, 0);
+    const grp = {}; for (const o of out) (grp[o.supplier || '—'] ??= []).push(o);
+    const gk = Object.keys(grp).sort((a, b) => grp[b].filter(o => opLight(o) === 'red').length - grp[a].filter(o => opLight(o) === 'red').length || grp[b].length - grp[a].length);
+    html = `${top}<div class="kpis wide">
+      ${K('At suppliers now', fmtN(out.length), `${fmtN(gk.length)} suppliers · ${fmtN(uniq(out.map(o => o.part_id || o.drawing_no)).length)} parts`, 'process?f=open')}
+      ${K('Overdue at suppliers', fmtN(out.filter(o => opLight(o) === 'red').length), 'past target date', 'alerts?lvl=red', out.some(o => opLight(o) === 'red') ? 'warn' : '')}
+      ${K('Avg days outside', avg == null ? '—' : fmtN(avg, 1) + ' d', 'for parts out now', 'tab:sup')}
+      ${K('Waiting to send', fmtN(toSend.length), 'planned supplier steps', 'process?f=open')}
+      ${K('Supplier on-time', tn ? fmtN(ot / tn * 100, 0) + '%' : '—', `${ot} of ${tn} returns / RM on time`, 'process?f=done', tn && ot / tn < .85 ? 'warn' : '')}
+      ${K('Payables', moneyShort(payT), `${Object.keys(pay).length} suppliers`, 'accounts?tab=pay')}
+    </div>
+    <div class="dgrid2">
+      ${card('Supplier scorecard', `spider chart · top 5 by volume · ${pname} · 100 = best`, chart('c_rad', 320))}
+      ${card('On-time rate by supplier', 'process returns + RM deliveries', chart('c_sot', 320))}
+    </div>
+    <div class="dgrid2">
+      ${card('Share of outside work', `completed steps by supplier · ${pname}`, chart('c_shr', 260))}
+      ${card('Payables by supplier', 'job work + RM bills unpaid', chart('c_pay', 260))}
+    </div>
+    <section class="panel"><header style="flex-wrap:wrap"><h3>Parts outside at suppliers now</h3><p>most overdue first · one tap sends a WhatsApp status request</p></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th class="lamp"></th><th>Supplier</th><th>Part</th><th>Process</th><th class="r">Qty</th><th>Sent</th><th class="r">Days out</th><th>Target</th><th></th></tr></thead><tbody>${gk.flatMap(k => grp[k].sort((a, b) => (a.target_date || '9').localeCompare(b.target_date || '9')).map(o => { const l = opLight(o), sp = supplierByName(k); return `<tr data-opid="${o.id}"><td class="lamp ${l === 'done' ? '' : l}"><i></i></td><td class="first" data-label="Supplier"><span class="t">${esc(k)}</span></td><td data-label="Part"><span class="mono">${esc(o.drawing_no)}</span><small>${esc(o.part_name || '')}</small></td><td data-label="Process">${esc(o.process || '')}</td><td class="r num" data-label="Qty">${fmtN(o.qty)}</td><td class="num" data-label="Sent">${fmtD(o.sent_date || o.start_date)}</td><td class="r num" data-label="Days out">${daysOut(o) ?? '—'}${daysOut(o) > stuckDays() ? '<small class="tred"><b>STUCK</b></small>' : ''}</td><td class="num ${l === 'red' ? 'tred' : ''}" data-label="Target">${fmtD(o.target_date)}</td><td class="acts">${sp?.phone ? `<a class="btn sm wa" target="_blank" rel="noopener" href="${esc(waLink(sp.phone, chaseText(k, grp[k])))}">${ICON.wa}Chase</a>` : ''}</td></tr>`; })).join('') || '<tr><td></td><td class="muted" colspan="8">Nothing is outside at a supplier right now.</td></tr>'}</tbody></table></div></div></section>`;
+    after = () => {
+      after0(); const k = STC(), c = SER();
+      const big = Object.keys(SC).filter(s => SC[s].n).sort((a, b) => SC[b].n - SC[a].n).slice(0, 5); const maxN = Math.max(1, ...big.map(s => SC[s].n));
+      if (!big.length) noChart('c_rad', 'Completes once suppliers return work.'); else cRadar('c_rad', ['On time', 'Quality', 'Speed', 'Volume'], big.map(s => { const x = SC[s], ad = x.dn ? x.days / x.dn : null; return { label: short(s), data: [x.tn ? x.ot / x.tn * 100 : 0, x.q ? (x.q - x.b) / x.q * 100 : 100, ad == null ? 0 : Math.max(0, Math.min(100, 100 - (ad - 2) * (100 / (stuckDays() * 2)))), x.n / maxN * 100] }; }));
+      const sk = Object.keys(SC).filter(s => SC[s].tn).sort((a, b) => SC[b].tn - SC[a].tn).slice(0, 10);
+      if (!sk.length) noChart('c_sot', 'Needs target dates on supplier steps.'); else cBar('c_sot', sk.map(short), [{ label: 'On time', data: sk.map(s => Math.round(SC[s].ot / SC[s].tn * 100)), backgroundColor: sk.map(s => { const r = SC[s].ot / SC[s].tn; return r >= .9 ? k.good : r >= .75 ? k.warn : k.bad; }) }], { h: 1, pct: 1 });
+      const sh = {}; for (const s in SC) if (SC[s].n) sh[s] = SC[s].n; const [sl, sv] = top6(sh);
+      if (!sl.length) noChart('c_shr', 'No completed supplier work in this period.'); else cDonut('c_shr', sl.map(short), sv, sl.map((l, i) => l === 'Other' ? k.muted : c[i]), { text: fmtN(sv.reduce((s, v) => s + v, 0)), sub: 'steps' });
+      const pk = Object.keys(pay).sort((a, b) => pay[b] - pay[a]).slice(0, 8);
+      if (!pk.length) noChart('c_pay', 'Nothing payable.'); else cBar('c_pay', pk.map(short), [{ label: 'Payable', data: pk.map(s => Math.round(pay[s])), backgroundColor: c[0] }], { h: 1, money: 1 });
+    };
+  }
+
+  if (tab === 'qa') {
+    const dn = (S.data.operations || []).filter(o => o.status === 'Done' && inR(o.done_date, R));
+    const pq = dn.reduce((s, o) => s + (num(o.qty) || 0), 0), bq = dn.reduce((s, o) => s + badQty(o), 0);
+    const insp = dn.filter(o => o.inspection), rw = dn.filter(isRework), debit = dn.reduce((s, o) => s + (num(o.debit_amount) || 0), 0);
+    const waiting = (S.data.operations || []).filter(o => o.status === 'Done' && !o.inspection && (o.done_date || '') >= addDays(today(), -30));
+    const byP = {}, byO = {}; for (const o of dn) { const b = badQty(o); if (!b) continue; byP[o.process || '—'] = (byP[o.process || '—'] || 0) + b; byO[ownerName(o)] = (byO[ownerName(o)] || 0) + b; }
+    const ev = dn.filter(o => badQty(o) || isRework(o)).sort((a, b) => (b.done_date || '').localeCompare(a.done_date || ''));
+    const fpy = pq ? (pq - bq) / pq * 100 : null;
+    html = `${top}<div class="kpis wide">
+      ${K('First pass yield', fpy == null ? '—' : fmtN(fpy, 1) + '%', `good ÷ processed qty · ${pname}`, 'tab:qa', fpy != null && fpy < 95 ? 'warn' : '')}
+      ${K('Processed qty', fmtN(pq), `${fmtN(dn.length)} completed steps`, 'process?f=done')}
+      ${K('Rejected / rework', fmtN(bq) + ' pcs', `${fmtN(ev.length)} quality events`, 'tab:qa', bq ? 'warn' : '')}
+      ${K('Rework / not-OK steps', fmtN(rw.length), 'from inspection results', 'tab:qa')}
+      ${K('Debits recovered', moneyShort(debit), 'charged back to suppliers', 'accounts?tab=pay')}
+      ${K('Awaiting inspection', fmtN(waiting.length), 'done in last 30 days, no result', 'process?f=done', waiting.length ? 'warn' : '')}
+    </div>
+    <div class="dgrid2">
+      ${card('Pareto of rejections by process', 'share of rejected + rework qty · red bars = the vital few causing 80%', chart('c_par', 300))}
+      ${card('Pareto of rejections by supplier / operator', 'where to act first', chart('c_paro', 300))}
+    </div>
+    <div class="dgrid3">
+      ${card('First pass yield trend', 'by month of completion', chart('c_fpy', 250))}
+      ${card('Inspection results', `completed steps · ${pname}`, chart('c_ins', 250))}
+      ${card('Yield', 'good qty ÷ processed', `${chart('c_fg', 170)}<p class="muted" style="text-align:center;margin:4px 0 0;font-size:12.5px">${fmtN(pq - bq)} good of ${fmtN(pq)} processed</p>`)}
+    </div>
+    <section class="panel"><header><h3>Quality events</h3><p>completed steps with rejections, rework or not-OK inspection · click to open</p></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Date</th><th>Part</th><th>Process</th><th>Supplier / operator</th><th>Inspection</th><th class="r">Qty</th><th class="r">Rejected</th><th class="r">Debit</th></tr></thead><tbody>${ev.slice(0, S.ui.dash_all ? 300 : 15).map(o => `<tr data-opid="${o.id}"><td class="num first" data-label="Date">${fmtD(o.done_date)}</td><td data-label="Part"><span class="mono">${esc(o.drawing_no)}</span><small>${esc(o.part_name || '')}</small></td><td data-label="Process">${esc(o.process || '')}</td><td data-label="Supplier / operator">${esc(ownerName(o))}</td><td data-label="Inspection">${o.inspection ? `<span class="chip ${isRework(o) ? 'red' : 'green'}">${esc(o.inspection)}</span>` : '—'}</td><td class="r num" data-label="Qty">${fmtN(o.qty)}</td><td class="r num tred" data-label="Rejected">${fmtN(badQty(o))}</td><td class="r num" data-label="Debit">${num(o.debit_amount) ? money(o.debit_amount) : '—'}</td></tr>`).join('') || '<tr><td class="muted" colspan="8">No rejections or rework recorded in this period.</td></tr>'}</tbody></table></div>${moreBtn(ev.length)}</div></section>`;
+    after = () => {
+      after0(); const k = STC(), c = SER();
+      const pp = Object.keys(byP).sort((a, b) => byP[b] - byP[a]).slice(0, 10), po = Object.keys(byO).sort((a, b) => byO[b] - byO[a]).slice(0, 10);
+      if (!pp.length) noChart('c_par', 'No rejections recorded in this period. 👍'); else cPareto('c_par', pp.map(short), pp.map(p => byP[p]));
+      if (!po.length) noChart('c_paro', 'No rejections recorded in this period. 👍'); else cPareto('c_paro', po.map(short), po.map(p => byO[p]));
+      const M = {}; for (const o of dn) { const m = o.done_date.slice(0, 7); M[m] ??= { q: 0, b: 0 }; M[m].q += num(o.qty) || 0; M[m].b += badQty(o); }
+      const mk = Object.keys(M).filter(m => M[m].q).sort().slice(-12); const vals = mk.map(m => round((M[m].q - M[m].b) / M[m].q * 100, 1));
+      if (!mk.length) noChart('c_fpy', 'No completed output in this period.'); else cLine('c_fpy', mk.map(lab), [{ label: 'FPY', data: vals, borderColor: c[0], backgroundColor: c[0] }, { label: 'Target 95%', data: mk.map(() => 95), borderColor: k.muted, borderDash: [5, 4], borderWidth: 1, pointRadius: 0 }], { pct: 1, min: Math.max(0, Math.floor(Math.min(...vals, 95) / 10) * 10 - 10) });
+      const okN = dn.filter(o => o.inspection && !isRework(o)).length, rwN = dn.filter(o => /rework/i.test(o.inspection || '')).length, ngN = dn.filter(o => isRework(o) && !/rework/i.test(o.inspection || '')).length, noN = dn.filter(o => !o.inspection).length;
+      if (!dn.length) noChart('c_ins', 'No completed steps in this period.'); else cDonut('c_ins', ['OK', 'Rework', 'Not OK', 'Not inspected'], [okN, rwN, ngN, noN], [k.good, k.warn, k.bad, k.none], { text: fmtN(insp.length), sub: 'inspected' });
+      cGauge('c_fg', fpy, 98, 95);
+    };
+  }
+
+  if (tab === 'mat') {
     const pk = parts.reduce((s, p) => s + (p.planned_weight || 0), 0), ak = parts.reduce((s, p) => s + (num(p.actual_weight) || 0), 0);
     const pc = parts.reduce((s, p) => s + (p.planned_cost || 0), 0), ac = parts.reduce((s, p) => s + (p.actual_cost || 0), 0);
-    const recvParts = parts.filter(p => p.actual_cost != null); const pcRecv = recvParts.reduce((s, p) => s + (p.planned_cost || 0), 0);
-    const byO = {}; for (const p of parts) { const o = orderById(p.order_id); const k = o ? o.id : '—'; byO[k] ??= { o, n: 0, pk: 0, ak: 0, pc: 0, ac: 0, pcr: 0, buy: 0 }; const x = byO[k]; x.n++; x.pk += p.planned_weight || 0; x.ak += num(p.actual_weight) || 0; x.pc += p.planned_cost || 0; x.ac += p.actual_cost || 0; if (p.actual_cost != null) x.pcr += p.planned_cost || 0; if (rmStage(p) === 'To buy') x.buy++; }
-    const rows = Object.values(byO).filter(x => x.o).sort((a, b) => b.pc - a.pc);
-    const byG = {}; for (const p of parts) { const g = p.grade || '—'; byG[g] ??= { pk: 0, ak: 0 }; byG[g].pk += p.planned_weight || 0; byG[g].ak += num(p.actual_weight) || 0; }
-    const gk = Object.keys(byG).sort((a, b) => byG[b].pk - byG[a].pk).slice(0, 10);
+    const recvParts = parts.filter(p => p.actual_cost != null), pcRecv = recvParts.reduce((s, p) => s + (p.planned_cost || 0), 0);
+    const byO = {}; for (const p of parts) { const o = orderById(p.order_id); if (!o) continue; byO[o.id] ??= { o, n: 0, pk: 0, ak: 0, pc: 0, ac: 0, pcr: 0, buy: 0 }; const x = byO[o.id]; x.n++; x.pk += p.planned_weight || 0; x.ak += num(p.actual_weight) || 0; x.pc += p.planned_cost || 0; x.ac += p.actual_cost || 0; if (p.actual_cost != null) x.pcr += p.planned_cost || 0; if (rmStage(p) === 'To buy') x.buy++; }
+    const rows = Object.values(byO).sort((a, b) => b.pc - a.pc);
+    const low = (S.data.materials || []).filter(m => num(m.min_stock_kg) && (num(m.stock_kg) || 0) < num(m.min_stock_kg));
     html = `${top}<div class="kpis wide">
-      ${kpi('Planned RM', fmtN(pk, 0) + ' kg', `${fmtN(parts.length)} parts`, 'rmplan')}
-      ${kpi('Received RM', fmtN(ak, 0) + ' kg', pk ? fmtN(ak / pk * 100, 0) + '% of plan' : '', 'purchase')}
-      ${kpi('Planned RM cost', moneyShort(pc), 'from RM master rates', 'rmplan')}
-      ${kpi('Actual RM cost', moneyShort(ac), recvParts.length ? `vs ${moneyShort(pcRecv)} planned for the same parts` : 'no GRNs yet', 'purchase', ac > pcRecv * 1.05 ? 'warn' : '')}
-      ${kpi('Parts still to buy', fmtN(parts.filter(p => rmStage(p) === 'To buy').length), 'raise a PO', 'rmplan?f=To buy')}
+      ${K('Planned RM', fmtN(pk, 0) + ' kg', `${fmtN(parts.length)} parts · ${pname}`, 'rmplan')}
+      ${K('Received RM', fmtN(ak, 0) + ' kg', pk ? fmtN(ak / pk * 100, 0) + '% of plan' : 'no GRNs yet', 'purchase')}
+      ${K('Planned RM cost', moneyShort(pc), 'weight × rate + cutting', 'rmplan')}
+      ${K('Actual RM cost', moneyShort(ac), recvParts.length ? `vs ${moneyShort(pcRecv)} planned, same parts` : 'no GRNs yet', 'purchase', ac > pcRecv * 1.05 ? 'warn' : '')}
+      ${K('Parts still to buy', fmtN(parts.filter(p => rmStage(p) === 'To buy').length), 'raise a PO', 'rmplan?f=To buy', parts.some(p => rmStage(p) === 'To buy') ? 'warn' : '')}
+      ${K('Low-stock grades', fmtN(low.length), 'below minimum stock', 'materials', low.length ? 'warn' : '')}
     </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>RM cost by order</h3><p>plan vs actual</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_rmo"></canvas></div></div></section>
-      <section class="panel"><header><h3>RM weight by grade</h3><p>planned vs received kg</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_rmg"></canvas></div></div></section>
+    <div class="dgrid3">
+      ${card('RM status of parts', pname, chart('c_rms', 250))}
+      ${card('Size mix', 'planned kg by part type', chart('c_mix', 250))}
+      ${card('Stock vs minimum', 'kg on hand · red = below minimum', chart('c_stk', 250))}
+    </div>
+    <div class="dgrid2">
+      ${card('RM weight by grade', 'planned vs received kg', chart('c_rmg', 300))}
+      ${card('RM cost by order', 'planned vs actual', chart('c_rmo', 300))}
     </div>
     <section class="panel"><header><h3>Plan vs actual by order</h3><p>variance is measured on parts already received</p></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Order</th><th class="r">Parts</th><th class="r">Plan kg</th><th class="r">Recd kg</th><th class="r">Plan cost</th><th class="r">Actual cost</th><th>Variance</th><th class="r">To buy</th></tr></thead><tbody>${rows.slice(0, S.ui.dash_all ? 80 : 10).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td class="r num" data-label="Parts">${fmtN(x.n)}</td><td class="r num" data-label="Plan kg">${fmtN(x.pk, 1)}</td><td class="r num" data-label="Recd kg">${fmtN(x.ak, 1)}</td><td class="r num" data-label="Plan cost">${money(x.pc)}</td><td class="r num" data-label="Actual">${money(x.ac)}</td><td data-label="Variance">${varChip(x.pcr, x.pcr ? x.ac : null)}</td><td class="r num" data-label="To buy">${x.buy ? `<span class="chip amber">${x.buy}</span>` : '0'}</td></tr>`).join('') || '<tr><td class="muted">No RM plans in this period.</td></tr>'}</tbody></table></div>${moreBtn(rows.length)}</div></section>`;
     after = () => {
-      after0(); const c = C(); const top10 = rows.slice(0, 10);
-      mkChart('c_rmo', { type: 'bar', data: { labels: top10.map(x => x.o.order_no), datasets: [{ label: 'Plan', data: top10.map(x => Math.round(x.pc)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Actual', data: top10.map(x => Math.round(x.ac)), backgroundColor: c.amber, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
-      mkChart('c_rmg', { type: 'bar', data: { labels: gk, datasets: [{ label: 'Planned kg', data: gk.map(g => round(byG[g].pk, 1)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Received kg', data: gk.map(g => round(byG[g].ak, 1)), backgroundColor: c.green, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, grid: { color: c.line } }, x: { grid: { display: false } } } } });
-      $$('[data-order]').forEach(el => el.onclick = () => go('order?id=' + el.dataset.order));
+      after0(); const k = STC(), c = SER();
+      const stg = ['Not planned', 'To buy', 'Ordered', 'Received', 'From stock'];
+      if (!parts.length) noChart('c_rms', 'No parts in this period.'); else cDonut('c_rms', stg, stg.map(s => parts.filter(p => rmStage(p) === s).length), [k.none, k.warn, c[0], k.good, c[2]], { text: fmtN(parts.length), sub: 'parts' });
+      const T = {}; for (const p of parts) { const t = p.type || (num(p.dia) ? 'Rod' : num(p.width) ? 'Plate' : 'Unsized'); T[t] = (T[t] || 0) + (p.planned_weight || 0); } const [tl, tv] = top6(T);
+      if (!tv.some(v => v > 0)) noChart('c_mix', 'Add sizes to parts to see the mix.'); else cDonut('c_mix', tl, tv.map(v => round(v, 1)), tl.map((l, i) => l === 'Other' ? k.muted : c[i]), { text: fmtN(pk, 0), sub: 'kg planned' });
+      const mats = (S.data.materials || []).filter(m => num(m.stock_kg) || num(m.min_stock_kg)).sort((a, b) => (num(b.stock_kg) || 0) - (num(a.stock_kg) || 0)).slice(0, 8);
+      if (!mats.length) noChart('c_stk', 'Add stock in the RM master.'); else cBar('c_stk', mats.map(m => m.grade), [{ label: 'Stock kg', data: mats.map(m => round(num(m.stock_kg) || 0, 1)), backgroundColor: mats.map(m => num(m.min_stock_kg) && (num(m.stock_kg) || 0) < num(m.min_stock_kg) ? k.bad : c[0]) }], { h: 1, unit: ' kg', dec: 1 });
+      const byG = {}; for (const p of parts) { const g = p.grade || '—'; byG[g] ??= { pk: 0, ak: 0 }; byG[g].pk += p.planned_weight || 0; byG[g].ak += num(p.actual_weight) || 0; }
+      const gk = Object.keys(byG).sort((a, b) => byG[b].pk - byG[a].pk).slice(0, 8);
+      if (!gk.length) noChart('c_rmg', 'No parts in this period.'); else cBar('c_rmg', gk, [{ label: 'Planned kg', data: gk.map(g => round(byG[g].pk, 1)), backgroundColor: c[0] }, { label: 'Received kg', data: gk.map(g => round(byG[g].ak, 1)), backgroundColor: c[2] }], { unit: ' kg', dec: 1 });
+      const t8 = rows.slice(0, 8);
+      if (!t8.length) noChart('c_rmo', 'No orders in this period.'); else cBar('c_rmo', t8.map(x => x.o.order_no), [{ label: 'Planned', data: t8.map(x => Math.round(x.pc)), backgroundColor: c[0] }, { label: 'Actual', data: t8.map(x => Math.round(x.ac)), backgroundColor: c[1] }], { money: 1, onClick: i => go('order?id=' + t8[i].o.id) });
     };
   }
 
-  if (tab === 'proc') {
+  if (tab === 'age') {
+    const st = wip.filter(x => x.stuck), ages = wip.filter(x => x.age != null);
+    const avg = ages.length ? ages.reduce((s, x) => s + x.age, 0) / ages.length : null, oldest = ages.reduce((m, x) => Math.max(m, x.age), 0);
+    const list = sortMatrix(wip.filter(x => x.stuck || x.late));
+    html = `${top}<div class="kpis wide">
+      ${K('Parts in work', fmtN(wip.length), 'not complete, open orders', 'tracker')}
+      ${K('Stuck parts', fmtN(st.length), `no movement for &gt; ${stuckDays()} days`, 'tab:age', st.length ? 'warn' : '')}
+      ${K('Stuck at suppliers', fmtN(st.filter(x => x.loc === 'Supplier').length), 'chase from the Suppliers tab', 'tab:sup')}
+      ${K('Stuck in house', fmtN(st.filter(x => x.loc !== 'Supplier').length), 'shop, stores, hold, rework', 'tab:age')}
+      ${K('Average age', avg == null ? '—' : fmtN(avg, 1) + ' d', 'at current location', 'tab:age')}
+      ${K('Oldest part', fmtN(oldest) + ' d', 'longest waiting', 'tab:age', oldest > stuckDays() ? 'warn' : '')}
+    </div>
+    <div class="dgrid3">
+      ${card('Ageing profile', `green ≤ ${stuckDays()} d · amber stuck · red &gt; 15 d`, chart('c_age', 250))}
+      ${card('Where stuck parts sit', `${st.length} stuck`, chart('c_sloc', 250))}
+      ${card('Stuck parts by owner', 'who to chase', chart('c_sown', 250))}
+    </div>
+    <section class="panel"><header><h3>Stuck & late parts</h3><p>oldest first · change the stuck rule in Settings → Alert rules</p></header><div class="body" style="padding-top:8px">${matrixTable(list.slice(0, S.ui.dash_all ? 400 : 30), 'No stuck or late parts. 👍')}${list.length > 30 ? `<div class="more"><button class="btn sm" data-dall>${S.ui.dash_all ? 'Show fewer' : `Show all ${list.length}`}</button></div>` : ''}</div></section>`;
+    after = () => {
+      after0(); const k = STC(), c = SER();
+      if (!wip.length) noChart('c_age', 'No parts in work.'); else cBar('c_age', BK.map(b => b[0]), [{ label: 'Parts', data: bucketCounts(), backgroundColor: bucketColors() }], { unit: ' parts' });
+      const L = {}; for (const x of st) L[x.loc] = (L[x.loc] || 0) + 1; const [ll, lv] = top6(L);
+      if (!st.length) noChart('c_sloc', 'Nothing is stuck. 👍'); else cDonut('c_sloc', ll, lv, ll.map((l, i) => l === 'Other' ? k.muted : c[i]), { text: fmtN(st.length), sub: 'stuck' });
+      const O = {}; for (const x of st) O[x.who || '—'] = (O[x.who || '—'] || 0) + 1; const ok = Object.keys(O).sort((a, b) => O[b] - O[a]).slice(0, 8);
+      if (!ok.length) noChart('c_sown', 'Nothing is stuck. 👍'); else cBar('c_sown', ok.map(short), [{ label: 'Stuck parts', data: ok.map(o => O[o]), backgroundColor: k.bad }], { h: 1, unit: ' parts' });
+    };
+  }
+
+  if (tab === 'cost') {
     const C2 = ops.map(o => computeRow('operations', o));
     const planAll = C2.reduce((s, o) => s + (o.plan_cost || 0), 0), done = C2.filter(o => o.status === 'Done'), act = done.reduce((s, o) => s + (o.actual_cost || 0), 0), planDone = done.filter(o => o.actual_cost != null).reduce((s, o) => s + (o.plan_cost || 0), 0);
     const noPlan = C2.filter(o => o.plan_cost == null && o.status !== 'Done').length;
+    const rmP = parts.reduce((s, p) => s + (p.planned_cost || 0), 0), rmA = parts.reduce((s, p) => s + (p.actual_cost || 0), 0), rmPr = parts.filter(p => p.actual_cost != null).reduce((s, p) => s + (p.planned_cost || 0), 0);
+    const debit = C2.reduce((s, o) => s + (num(o.debit_amount) || 0), 0), tv = (rmA - rmPr) + (act - planDone), tp = rmPr + planDone;
+    const inhA = done.filter(o => o.owner_type !== 'Supplier').reduce((s, o) => s + (o.actual_cost || 0), 0), outA = done.filter(o => o.owner_type === 'Supplier').reduce((s, o) => s + (o.actual_cost || 0), 0);
     const byP = {}; for (const o of C2) { const k = o.process || '—'; byP[k] ??= { p: 0, a: 0, pd: 0 }; byP[k].p += o.plan_cost || 0; if (o.status === 'Done' && o.actual_cost != null) { byP[k].a += o.actual_cost; byP[k].pd += o.plan_cost || 0; } }
-    const pk = Object.keys(byP).sort((a, b) => byP[b].p - byP[a].p).slice(0, 10);
-    const byO = {}; for (const o of C2) { const ord = orderById(o.order_id); if (!ord) continue; byO[ord.id] ??= { o: ord, n: 0, d: 0, p: 0, a: 0, pd: 0, sup: 0, inh: 0 }; const x = byO[ord.id]; x.n++; if (o.status === 'Done') x.d++; x.p += o.plan_cost || 0; if (o.status === 'Done' && o.actual_cost != null) { x.a += o.actual_cost; x.pd += o.plan_cost || 0; } o.owner_type === 'Supplier' ? x.sup += o.actual_cost ?? o.plan_cost ?? 0 : x.inh += o.actual_cost ?? o.plan_cost ?? 0; }
-    const rows = Object.values(byO).sort((a, b) => b.p - a.p);
+    const byO = {}; const row = ord => byO[ord.id] ??= { o: ord, n: 0, d: 0, p: 0, a: 0, pd: 0, rp: 0, ra: 0, rpr: 0 };
+    for (const o of C2) { const ord = orderById(o.order_id); if (!ord) continue; const x = row(ord); x.n++; if (o.status === 'Done') x.d++; x.p += o.plan_cost || 0; if (o.status === 'Done' && o.actual_cost != null) { x.a += o.actual_cost; x.pd += o.plan_cost || 0; } }
+    for (const p of parts) { const ord = orderById(p.order_id); if (!ord) continue; const x = row(ord); x.rp += p.planned_cost || 0; if (p.actual_cost != null) { x.ra += p.actual_cost; x.rpr += p.planned_cost || 0; } }
+    const rows = Object.values(byO).sort((a, b) => (b.p + b.rp) - (a.p + a.rp));
+    const pct = (a, p) => p ? `${a > p ? '+' : ''}${fmtN((a - p) / p * 100, 1)}%` : '—';
     html = `${top}<div class="kpis wide">
-      ${kpi('Planned process cost', moneyShort(planAll), `${fmtN(C2.length)} steps`, 'process')}
-      ${kpi('Actual on completed', moneyShort(act), `${fmtN(done.length)} steps done`, 'process?f=done')}
-      ${kpi('Variance on completed', planDone ? `${act > planDone ? '+' : ''}${fmtN((act - planDone) / planDone * 100, 1)}%` : '—', planDone ? `plan ${moneyShort(planDone)}` : 'enter actual rates', 'process?f=done', act > planDone * 1.05 ? 'warn' : '')}
-      ${kpi('Steps without a cost plan', fmtN(noPlan), 'add rate or hours', 'process?f=open', noPlan ? 'warn' : '')}
-      ${kpi('In-house machine hours', fmtN(C2.filter(o => o.owner_type === 'In-house').reduce((s, o) => s + (o._hours || 0), 0), 0), 'from start / end times', 'process?f=done')}
-      ${kpi('Rejections', fmtN(C2.reduce((s, o) => s + (num(o.rejection_qty) || 0), 0)), 'debit ' + money(C2.reduce((s, o) => s + (num(o.debit_amount) || 0), 0)), 'process?f=done')}
+      ${K('RM cost vs plan', pct(rmA, rmPr), `actual ${moneyShort(rmA)} · plan ${moneyShort(rmP)}`, 'tab:mat', rmA > rmPr * 1.05 ? 'warn' : '')}
+      ${K('Process cost vs plan', pct(act, planDone), `actual ${moneyShort(act)} on ${fmtN(done.length)} done steps`, 'process?f=done', act > planDone * 1.05 ? 'warn' : '')}
+      ${K('Planned process cost', moneyShort(planAll), `${fmtN(C2.length)} steps · ${pname}`, 'process')}
+      ${K('Steps without a cost plan', fmtN(noPlan), 'add rate or hours', 'process?f=open', noPlan ? 'warn' : '')}
+      ${K('Rejection debits', moneyShort(debit), 'recovered from suppliers', 'tab:qa')}
+      ${K('Total variance', `${tv > 0 ? '+' : ''}${moneyShort(tv)}`, tp ? `${pct(tp + tv, tp)} on received / done` : 'nothing received yet', 'tab:cost', tv > 0 ? 'warn' : '')}
     </div>
     ${inhouseRatePanel(C2)}
-    <div class="grid2">
-      <section class="panel"><header><h3>Cost by process</h3><p>plan vs actual (completed steps)</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_pp"></canvas></div></div></section>
-      <section class="panel"><header><h3>In-house vs outside</h3><p>share of process cost</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_io"></canvas></div></div></section>
+    <div class="dgrid3">
+      ${card('Where the money went', `actual cost · ${pname}`, chart('c_mix', 260))}
+      ${card('Cost by process', 'plan vs actual, completed steps', chart('c_pp', 260))}
+      ${card('Variance by order', 'actual − plan · blue under, red over', chart('c_var', 260))}
     </div>
-    <section class="panel"><header><h3>Plan vs actual by order</h3></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Order</th><th class="r">Steps</th><th>Done</th><th class="r">Planned</th><th class="r">Actual (done)</th><th>Variance</th></tr></thead><tbody>${rows.slice(0, S.ui.dash_all ? 80 : 10).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td class="r num" data-label="Steps">${fmtN(x.n)}</td><td data-label="Done"><div class="pcell">${pbar(x.n ? Math.round(x.d / x.n * 100) : 0)}</div></td><td class="r num" data-label="Planned">${money(x.p)}</td><td class="r num" data-label="Actual">${money(x.a)}</td><td data-label="Variance">${varChip(x.pd, x.pd ? x.a : null)}</td></tr>`).join('') || '<tr><td class="muted">No process plans in this period.</td></tr>'}</tbody></table></div>${moreBtn(rows.length)}</div></section>`;
+    <section class="panel"><header><h3>Plan vs actual by order</h3><p>RM + process · variance on received parts and completed steps</p></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Order</th><th>Steps done</th><th class="r">RM plan</th><th class="r">RM actual</th><th class="r">Process plan</th><th class="r">Process actual</th><th>Variance</th></tr></thead><tbody>${rows.slice(0, S.ui.dash_all ? 80 : 10).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td data-label="Done"><div class="pcell">${pbar(x.n ? Math.round(x.d / x.n * 100) : 0)}</div></td><td class="r num" data-label="RM plan">${money(x.rp)}</td><td class="r num" data-label="RM actual">${money(x.ra)}</td><td class="r num" data-label="Process plan">${money(x.p)}</td><td class="r num" data-label="Process actual">${money(x.a)}</td><td data-label="Variance">${varChip(x.pd + x.rpr, x.pd + x.rpr ? x.a + x.ra : null)}</td></tr>`).join('') || '<tr><td class="muted">No cost plans in this period.</td></tr>'}</tbody></table></div>${moreBtn(rows.length)}</div></section>`;
     after = () => {
-      after0(); const c = C();
-      mkChart('c_pp', { type: 'bar', data: { labels: pk.map(short), datasets: [{ label: 'Plan (done)', data: pk.map(k => Math.round(byP[k].pd)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Actual', data: pk.map(k => Math.round(byP[k].a)), backgroundColor: c.amber, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
-      const inh = C2.filter(o => o.owner_type !== 'Supplier').reduce((s, o) => s + (o.actual_cost ?? o.plan_cost ?? 0), 0), out = C2.filter(o => o.owner_type === 'Supplier').reduce((s, o) => s + (o.actual_cost ?? o.plan_cost ?? 0), 0);
-      mkChart('c_io', { type: 'doughnut', data: { labels: ['In-house', 'Outside suppliers'], datasets: [{ data: [Math.round(inh), Math.round(out)], backgroundColor: [c.steel, c.amber], borderWidth: 0 }] }, legend: true });
-      $$('[data-order]').forEach(el => el.onclick = () => go('order?id=' + el.dataset.order));
+      after0(); const k = STC(), c = SER();
+      if (!(rmA + inhA + outA)) noChart('c_mix', 'Actual costs appear as GRNs and steps are completed.'); else cDonut('c_mix', ['Raw material', 'In-house machining', 'Outside job work'], [Math.round(rmA), Math.round(inhA), Math.round(outA)], [c[0], c[1], c[2]], { text: moneyShort(rmA + inhA + outA), sub: 'actual' });
+      const pk = Object.keys(byP).filter(p => byP[p].pd || byP[p].a).sort((a, b) => byP[b].pd - byP[a].pd).slice(0, 8);
+      if (!pk.length) noChart('c_pp', 'Needs plan and actual rates on completed steps.'); else cBar('c_pp', pk.map(short), [{ label: 'Plan', data: pk.map(p => Math.round(byP[p].pd)), backgroundColor: c[0] }, { label: 'Actual', data: pk.map(p => Math.round(byP[p].a)), backgroundColor: c[1] }], { money: 1 });
+      const vr = rows.filter(x => x.pd + x.rpr).map(x => ({ x, v: Math.round(x.a + x.ra - x.pd - x.rpr) })).sort((a, b) => Math.abs(b.v) - Math.abs(a.v)).slice(0, 8);
+      if (!vr.length) noChart('c_var', 'Variance appears once parts are received and steps done.'); else cBar('c_var', vr.map(y => y.x.o.order_no), [{ label: 'Variance', data: vr.map(y => y.v), backgroundColor: vr.map(y => y.v > 0 ? k.bad : cssVar('--s1')) }], { h: 1, money: 1, onClick: i => go('order?id=' + vr[i].x.o.id) });
     };
   }
 
-  if (tab === 'cust') {
+  if (tab === 'deliv') {
     const all = S.data.orders || [];
-    const del = all.filter(o => o.delivered_date && o.delivery_date && inR(o.delivered_date, R));
-    const ontime = del.filter(o => o.delivered_date <= o.delivery_date).length;
+    const del = all.filter(o => o.delivered_date && o.delivery_date && inR(o.delivered_date, R)), ontime = del.filter(o => o.delivered_date <= o.delivery_date).length;
     const t = today(), inv = all.filter(o => computeRow('orders', o).outstanding > 0);
     const due = o => addDays(o.invoice_date || o.delivered_date || t, num(o.credit_days) ?? num(S.settings.default_credit_days) ?? 30);
     const B = [['Not due', -1e9, 0], ['1–30', 1, 30], ['31–60', 31, 60], ['61–90', 61, 90], ['90+', 91, 1e9]];
@@ -1761,51 +2255,39 @@ function viewDashboard() {
     const months = {}; for (const o of del) { const k = o.delivered_date.slice(0, 7); months[k] ??= { n: 0, ot: 0 }; months[k].n++; if (o.delivered_date <= o.delivery_date) months[k].ot++; }
     const mk = Object.keys(months).sort().slice(-12);
     const recvT = inv.reduce((s, o) => s + computeRow('orders', o).outstanding, 0), over = inv.filter(o => due(o) < t).reduce((s, o) => s + computeRow('orders', o).outstanding, 0);
+    const pay = (S.data.operations || []).reduce((s, o) => s + opPayable(o), 0) + (S.data.grns || []).reduce((s, g) => s + grnPayable(g), 0);
     html = `${top}<div class="kpis wide">
-      ${kpi('On-time delivery rate', del.length ? fmtN(ontime / del.length * 100, 0) + '%' : '—', `${ontime} of ${del.length} orders on time`, 'orders?f=done', del.length && ontime / del.length < .9 ? 'warn' : '')}
-      ${kpi('Avg delay when late', del.length - ontime ? fmtN(Object.values(byC).reduce((s, x) => s + x.late, 0) / (del.length - ontime), 1) + ' d' : '—', 'days past committed date', 'orders?f=done')}
-      ${kpi('Receivables', moneyShort(recvT), `${inv.length} invoices open`, 'accounts')}
-      ${kpi('Overdue receivables', moneyShort(over), 'past credit period', 'accounts', over ? 'warn' : '')}
-      ${kpi('Delivered, not invoiced', fmtN(all.filter(o => o.status === 'Delivered' && !o.invoice_amount).length), 'raise invoices', 'accounts')}
+      ${K('On-time delivery', del.length ? fmtN(ontime / del.length * 100, 0) + '%' : '—', `${ontime} of ${del.length} orders on time`, 'orders?f=done', del.length && ontime / del.length < .9 ? 'warn' : '')}
+      ${K('Avg delay when late', del.length - ontime ? fmtN(Object.values(byC).reduce((s, x) => s + x.late, 0) / (del.length - ontime), 1) + ' d' : '—', 'days past committed date', 'orders?f=done')}
+      ${K('Receivables', moneyShort(recvT), `${inv.length} invoices open`, 'accounts')}
+      ${K('Overdue receivables', moneyShort(over), 'past credit period', 'accounts', over ? 'warn' : '')}
+      ${K('Delivered, not invoiced', fmtN(all.filter(o => o.status === 'Delivered' && !o.invoice_amount).length), 'raise invoices', 'accounts')}
+      ${K('Payables', moneyShort(pay), 'to suppliers', 'accounts?tab=pay')}
     </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>On-time delivery by month</h3><p>% of orders delivered by the committed date</p></header><div class="body"><div class="chartbox"><canvas id="c_otd"></canvas></div></div></section>
-      <section class="panel"><header><h3>Receivables ageing</h3><p>days past due date</p></header><div class="body"><div class="chartbox"><canvas id="c_rag"></canvas></div></div></section>
+    <div class="dgrid3">
+      ${card('On-time delivery', pname, `${chart('c_otg', 170)}<p class="muted" style="text-align:center;margin:4px 0 0;font-size:12.5px">${ontime} of ${del.length} orders delivered by the committed date</p>`)}
+      ${card('Order status', 'all orders in period', chart('c_ost', 250))}
+      ${card('Receivables ageing', 'days past due date', chart('c_rag', 250))}
+    </div>
+    <div class="dgrid2">
+      ${card('On-time delivery by month', '% of orders delivered by the committed date', chart('c_otd', 260))}
+      ${card('Orders received', 'per month', chart('c_ord', 260))}
     </div>
     <section class="panel"><header><h3>By customer</h3></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Customer</th><th class="r">Delivered</th><th>On time</th><th class="r">Receivable</th></tr></thead><tbody>${uniq([...Object.keys(byC), ...inv.map(o => o.customer || '—')]).map(k => { const x = byC[k] || { n: 0, ot: 0 }; const r = inv.filter(o => (o.customer || '—') === k).reduce((s, o) => s + computeRow('orders', o).outstanding, 0); const p = x.n ? Math.round(x.ot / x.n * 100) : null; return `<tr><td class="first" data-label="Customer"><span class="t">${esc(k)}</span></td><td class="r num" data-label="Delivered">${fmtN(x.n)}</td><td data-label="On time">${p == null ? '—' : `<span class="chip ${p >= 90 ? 'green' : p >= 75 ? 'amber' : 'red'}">${p}%</span>`}</td><td class="r num" data-label="Receivable">${money(r)}</td></tr>`; }).join('') || '<tr><td class="muted">Record delivered dates and invoices on orders to see this.</td></tr>'}</tbody></table></div></div></section>`;
     after = () => {
-      after0(); const c = C();
-      mkChart('c_otd', { type: 'line', data: { labels: mk.map(k => MONTHS[+k.slice(5) - 1] + ' ' + k.slice(2, 4)), datasets: [{ data: mk.map(k => Math.round(months[k].ot / months[k].n * 100)), borderColor: c.steel, backgroundColor: c.steel, tension: .3, pointRadius: 4 }] }, options: { scales: { y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
-      mkChart('c_rag', { type: 'bar', data: { labels: B.map(b => b[0]), datasets: [{ data: ag.map(Math.round), backgroundColor: [c.green, c.amber, c.amber, c.red, c.red], borderRadius: 4 }] }, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
+      after0(); const k = STC(), c = SER();
+      cGauge('c_otg', del.length ? ontime / del.length * 100 : null);
+      if (!orders.length) noChart('c_ost', 'No orders in this period.'); else cDonut('c_ost', ORDER_STATUS, ORDER_STATUS.map(s => orders.filter(o => o.status === s).length), [c[0], c[1], c[2], k.good, k.muted, k.bad], { text: fmtN(orders.length), sub: 'orders' });
+      if (!recvT) noChart('c_rag', 'No open invoices.'); else cBar('c_rag', B.map(b => b[0]), [{ label: 'Receivable', data: ag.map(Math.round), backgroundColor: [k.good, k.warn, k.warn, k.bad, k.bad] }], { money: 1 });
+      if (!mk.length) noChart('c_otd', 'Record delivered dates on orders to see this.'); else cLine('c_otd', mk.map(lab), [{ label: 'On time', data: mk.map(m => Math.round(months[m].ot / months[m].n * 100)), borderColor: c[0], backgroundColor: c[0] }, { label: 'Target 90%', data: mk.map(() => 90), borderColor: k.muted, borderDash: [5, 4], borderWidth: 1, pointRadius: 0 }], { pct: 1 });
+      const OM = {}; for (const o of S.data.orders || []) { if (!inR(o.order_date, R)) continue; const m = o.order_date.slice(0, 7); OM[m] = (OM[m] || 0) + 1; } const ok = Object.keys(OM).sort().slice(-12);
+      if (!ok.length) noChart('c_ord', 'No orders in this period.'); else cBar('c_ord', ok.map(lab), [{ label: 'Orders', data: ok.map(m => OM[m]), backgroundColor: c[0] }], { unit: ' orders' });
     };
   }
-
-  if (tab === 'sup') {
-    const dn = (S.data.operations || []).filter(o => o.owner_type === 'Supplier' && o.status === 'Done' && o.target_date && o.done_date && inR(o.done_date, R));
-    const byS = {}; for (const o of dn) { const k = o.supplier || '—'; byS[k] ??= { n: 0, ot: 0 }; byS[k].n++; if (o.done_date <= o.target_date) byS[k].ot++; }
-    const po = (S.data.grns || []).filter(g => inR(g.grn_date, R)); for (const g of po) { const p = poById(g.po_id); if (!p?.expected_date) continue; const k = g.supplier || '—'; byS[k] ??= { n: 0, ot: 0 }; byS[k].n++; if (g.grn_date <= p.expected_date) byS[k].ot++; }
-    const sk = Object.keys(byS).sort((a, b) => byS[b].n - byS[a].n).slice(0, 12);
-    const pay = {}; for (const o of S.data.operations || []) { const v = opPayable(o); if (v) pay[o.supplier] = (pay[o.supplier] || 0) + v; } for (const g of S.data.grns || []) { const v = grnPayable(g); if (v) pay[g.supplier] = (pay[g.supplier] || 0) + v; }
-    const tot = Object.values(byS).reduce((s, x) => s + x.n, 0), ot = Object.values(byS).reduce((s, x) => s + x.ot, 0);
-    const payT = Object.values(pay).reduce((s, v) => s + v, 0);
-    html = `${top}<div class="kpis wide">
-      ${kpi('Supplier on-time rate', tot ? fmtN(ot / tot * 100, 0) + '%' : '—', `${ot} of ${tot} deliveries on time`, 'process?f=done', tot && ot / tot < .85 ? 'warn' : '')}
-      ${kpi('At suppliers now', fmtN((S.data.operations || []).filter(o => o.owner_type === 'Supplier' && o.status !== 'Done' && o.status !== 'Planned' && (o.order_id ? !ORDER_DONE.has(orderById(o.order_id)?.status) : true)).length), 'process steps', 'process?f=open')}
-      ${kpi('Payables', moneyShort(payT), `${Object.keys(pay).length} suppliers`, 'accounts?tab=pay')}
-      ${kpi('Rejections by suppliers', fmtN(dn.reduce((s, o) => s + (num(o.rejection_qty) || 0), 0)), 'parts in period', 'process?f=done')}
-    </div>
-    <div class="grid2">
-      <section class="panel"><header><h3>Supplier on-time rate</h3><p>process returns and RM deliveries</p></header><div class="body"><div class="chartbox" style="height:320px"><canvas id="c_sot"></canvas></div></div></section>
-      <section class="panel"><header><h3>Payables by supplier</h3></header><div class="body"><div class="chartbox" style="height:320px"><canvas id="c_pay"></canvas></div></div></section>
-    </div>`;
-    after = () => {
-      after0(); const c = C(); const pk = Object.keys(pay).sort((a, b) => pay[b] - pay[a]).slice(0, 10);
-      mkChart('c_sot', { type: 'bar', data: { labels: sk.map(short), datasets: [{ data: sk.map(k => Math.round(byS[k].ot / byS[k].n * 100)), backgroundColor: sk.map(k => byS[k].ot / byS[k].n >= .9 ? c.green : byS[k].ot / byS[k].n >= .75 ? c.amber : c.red), borderRadius: 3 }] }, options: { indexAxis: 'y', scales: { x: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: c.line } }, y: { grid: { display: false } } } } });
-      mkChart('c_pay', { type: 'bar', data: { labels: pk.map(short), datasets: [{ data: pk.map(k => Math.round(pay[k])), backgroundColor: c.amber, borderRadius: 3 }] }, options: { indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, y: { grid: { display: false } } } } });
-    };
-  }
-  return { title: 'Dashboard', sub: `${S.settings.company_name || 'Overview'} · ${fmtD(today())}`, html, after };
+  const tname = DTABS.find(d => d[0] === tab)[1];
+  return { title: 'Dashboard', sub: `${tname} · ${S.settings.company_name || 'Overview'} · ${fmtD(today())}`, html, after };
 }
+
 function moreBtn(n) { return n > 10 ? `<div class="more">${S.ui.dash_all ? '' : `Top 10 of ${fmtN(n)}`}<button class="btn sm" data-dall>${S.ui.dash_all ? 'Show fewer' : 'Show all'}</button></div>` : ''; }
 document.addEventListener('click', e => { if (e.target.closest('[data-dall]')) { S.ui.dash_all = !S.ui.dash_all; saveUI(); S._keepScroll = true; render(); } });
 function inhouseRatePanel(C2) {
@@ -2063,7 +2545,9 @@ function viewTeam() {
 }
 function viewMore() {
   const items = [['orders', '1 · Orders', 'Order register and delivery dates'], ['rmplan', '2 · RM plan', 'Child parts, sizes, RM weight and cost'], ['purchase', '3 · Purchase & GRN', 'Purchase orders and material receipts'], ['process', '4 · Process plan', 'Process steps, owners, targets, cost'], ['accounts', '5 · Billing & payments', 'Receivables and payables'], ['materials', 'RM master', 'Grades, rates, stock'], ['suppliers', 'Suppliers', 'Shops, contacts, WhatsApp'], ['customers', 'Customers', 'Contacts and credit days'], ['team', 'Team', 'People and notification details'], ['settings', 'Settings', 'Company, lists, alerts, import']];
-  return { title: 'More', html: items.map(([k, a, b]) => `<a class="choice" href="#/${k}" style="display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit"><span style="width:24px;color:var(--steel)">${ICON[{ rmplan: 'rm', purchase: 'po', process: 'process', accounts: 'money' }[k] || k]}</span><span><b>${a}</b><span>${b}</span></span></a>`).join('') };
+  const m = me(), st = S.settings;
+  const acct = `<section class="panel mecard">${st.logo ? `<img src="${esc(st.logo)}" alt="">` : `<span class="mark">${esc(initials(st.company_name || st.app_title))}</span>`}<div style="flex:1;min-width:0"><b style="display:block">${esc(st.company_name || st.app_title)}</b><small class="muted">${esc(m.name)} · ${esc({ admin: 'Admin', editor: 'Editor', member: 'Member', viewer: 'Viewer' }[myRole()] || 'No access')}</small></div><button class="btn sm" data-theme2 aria-label="Switch light or dark">${ICON.moon}</button>${S.mode === 'cloud' ? `<button class="btn sm danger" data-signout2>Sign out</button>` : ''}</section>`;
+  return { title: 'More', after: () => { $('[data-signout2]')?.addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); }); $('[data-theme2]')?.addEventListener('click', () => { const nx = (document.documentElement.dataset.theme || 'light') === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = nx; S.ui.theme3 = nx; saveUI(); render(); }); }, html: acct + items.map(([k, a, b]) => `<a class="choice" href="#/${k}" style="display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit"><span style="width:24px;color:var(--steel)">${ICON[{ rmplan: 'rm', purchase: 'po', process: 'process', accounts: 'money' }[k] || k]}</span><span><b>${a}</b><span>${b}</span></span></a>`).join('') };
 }
 
 /* =====================================================================
@@ -3060,6 +3544,7 @@ const SETTINGS_TABS = {
       ${sField('order_warn_days', 'Order: warn before delivery (days)', s.order_warn_days, 'number', 'Orders turn amber and the project owner is notified this many days before the delivery date.')}
       ${sField('default_credit_days', 'Default credit days', s.default_credit_days, 'number', 'Used when a customer or supplier has none.')}
       ${sField('alert_lookback_days', 'Ignore unlinked records older than (days)', s.alert_lookback_days, 'number', 'Keeps old, never-closed history from flooding the alerts.')}
+      ${sField('stuck_days', 'Part is “stuck” after (days)', s.stuck_days ?? 7, 'number', 'A child part that hasn’t moved from where it is for longer than this shows as STUCK on the dashboard.')}
       </div></div></section>
       <section class="panel" style="margin-top:16px"><header><h3>Daily digest</h3></header><div class="body">
       <label class="switch"><input type="checkbox" data-set="digest_auto" ${s.digest_auto ? 'checked' : ''}> Send the digest automatically each morning</label>
@@ -3138,13 +3623,14 @@ const SETTINGS_TABS = {
         <label class="btn pri">${ICON.up}Choose Excel file<input type="file" id="xin" accept=".xlsx,.xlsm,.xls" hidden></label>
         <div id="xprev" style="margin-top:16px"></div></div></section>
       <section class="panel" style="margin-top:16px"><header><h3>Backup</h3></header><div class="body"><p class="muted" style="font-size:14px;margin-top:0">Download everything as one Excel workbook. The same file can be imported back.</p><button class="btn" id="bk">${ICON.down}Download full backup</button></div></section>
-      <section class="panel" style="margin-top:16px"><header><h3>Start over</h3></header><div class="body"><p class="muted" style="font-size:14px;margin-top:0">Deletes all orders, parts, POs, GRNs, process steps, tasks, RM master, customers, suppliers and team members${S.mode === 'cloud' ? ' for everyone' : ' on this device'}. Settings and lists stay.</p><button class="btn danger" id="wipe">Delete all data</button></div></section>`,
+      <section class="panel" style="margin-top:16px"><header><h3>Demo data</h3>${demoLoaded() ? `<span class="chip amber">Loaded · ${fmtN(demoCount())} records</span>` : '<span class="chip nodot">Not loaded</span>'}</header><div class="body"><p class="muted" style="font-size:14px;margin-top:0">A complete sample workspace for training, testing every screen and showing customers: 7 orders from finished-and-paid to just-received, child parts with RM plans, POs and GRNs, process routes at suppliers and in-house (on time, late, on hold, stuck), inspections with rework and debits, supplier bills, receivables, tasks and activity. Demo people and suppliers have no phone or email, so nothing is sent. Demo records are tagged and removed in one click without touching your real data.</p>${demoLoaded() ? '<button class="btn danger" data-flushdemo>Remove demo data</button>' : '<button class="btn pri" data-loaddemo>Load demo data</button>'}</div></section>
+      <section class="panel" style="margin-top:16px"><header><h3>Start over</h3></header><div class="body"><p class="muted" style="font-size:14px;margin-top:0">Deletes all orders, parts, POs, GRNs, process steps, tasks, RM master, customers, suppliers and team members${S.mode === 'cloud' ? ' for everyone' : ' on this device'}. The recent-activity log is cleared too. Settings and lists stay.</p><button class="btn danger" id="wipe">Delete all data</button></div></section>`,
       after() {
         $('#bk').onclick = () => window.XLSX ? backupWorkbook() : toast('Excel library is still loading.');
         $('#wipe').onclick = async () => {
           const m = openModal(`<h2>Delete all data?</h2><p class="muted">Type <b>DELETE</b> to confirm. Download a backup first if you might need it.</p><div class="field"><input id="wc"></div><div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" id="wn">Cancel</button><button class="btn danger" id="wy">Delete everything</button></div>`);
           $('#wn', m).onclick = closeOverlay;
-          $('#wy', m).onclick = async () => { if ($('#wc', m).value !== 'DELETE') return toast('Type DELETE to confirm.'); closeOverlay(); try { for (const t of [...WORK_TABLES].reverse().concat(['notifications'])) await DB.remove(t, S.data[t].map(r => r.id)); toast('All data deleted.'); render(); } catch (e) { fail(e); } };
+          $('#wy', m).onclick = async () => { if ($('#wc', m).value !== 'DELETE') return toast('Type DELETE to confirm.'); closeOverlay(); try { for (const t of [...WORK_TABLES].reverse().concat(['notifications', 'activity'])) await DB.remove(t, S.data[t].map(r => r.id)); if (S.mode === 'cloud') { const { error } = await sb.from('activity').delete().not('id', 'is', null); if (error) console.warn('activity', error); S.data.activity = []; } toast('All data deleted.'); render(); } catch (e) { fail(e); } };
         };
         $('#xin').onchange = async e => {
           const f = e.target.files[0]; if (!f) return; const box = $('#xprev');
@@ -3263,7 +3749,7 @@ function showWelcome() {
     $('#ix', m).onclick = closeOverlay;
     $('#ig', m).onclick = async () => { const c = readInvite($('#il', m).value.trim()); if (!c) { $('#ie', m).textContent = 'That doesn’t look like an invite link. Ask your admin to copy it from Settings → Cloud connection.'; return; } lsSet('cpt_cfg', c); closeOverlay(); await boot(); };
   };
-  $('#c2').onclick = async () => { lsSet('cpt_cfg', { mode: 'local' }); await start({ mode: 'local' }); toast('Trial workspace ready. Import your Excel workbook to bring in your data.', [{ label: 'Import Excel', route: 'settings?tab=data' }], 10000); };
+  $('#c2').onclick = async () => { lsSet('cpt_cfg', { mode: 'local' }); await start({ mode: 'local' }); toast('Trial workspace ready. Load demo data to explore, or import your Excel workbook.', [{ label: 'Load demo data', onClick: loadDemo }, { label: 'Import Excel', route: 'settings?tab=data' }], 12000); };
 }
 
 function showConnect(fromApp) {
