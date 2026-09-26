@@ -399,6 +399,19 @@ table.lines td small{display:block;color:var(--muted);font-size:12px}
 .ell{display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hub-head .body{padding:18px 20px}
 html,body{overflow-x:clip;max-width:100%}.main,.view{min-width:0;max-width:100vw}canvas{max-width:100%!important}
+@media (max-width:700px){
+  .dt.mini tr{grid-template-columns:repeat(3,1fr);padding:9px 10px 9px 12px;margin-bottom:6px;gap:2px 8px}
+  .dt.mini td{font-size:12.5px}.dt.mini td::before{font-size:10.5px}.dt.mini td.first{font-size:13.5px}
+  .dt.mini td .chip{font-size:11px;padding:0 6px}
+  .chartbox{height:210px!important}
+  .kpis,.kpis.wide{gap:8px}
+  .kpi{padding:10px 12px}.kpi b{font-size:21px}.kpi span{font-size:11.5px}.kpi small{font-size:11px}
+  .grid2,.grid3{gap:12px}
+  .panel>header{flex-wrap:wrap;padding:12px 14px 0}.panel .body{padding:10px 14px 14px}
+  .toolbar{gap:8px}
+  .dash-head{gap:12px}
+}
+@media (max-width:700px){.dt.mini .pcell{min-width:0;gap:4px}.dt.mini .pbar{min-width:0;height:6px}.dt.mini .pcell small{min-width:0;font-size:11px}}
 
 </style>
 </head>
@@ -1533,7 +1546,7 @@ function hasDataIn(p) { const R = periodRange(p); return (S.data.orders || []).s
 function historyBanner() {
   const all = S.data.orders || []; if (!all.length || all.some(o => !ORDER_DONE.has(o.status))) return '';
   const ds = all.map(o => o.order_date).filter(Boolean).sort();
-  return `<div class="panel" style="margin-bottom:16px;border-color:var(--steel)"><div class="body row"><span style="flex:1;min-width:240px"><b>${fmtN(all.length)} orders are in the app as closed history</b>${ds.length ? ` (${fmtD(ds[0])} – ${fmtD(ds[ds.length - 1])})` : ''}. Orders with no activity for ${num(S.settings.alert_lookback_days) || 120} days are imported as <i>Closed</i> so old work doesn’t flood the alerts. Reopen any that are still running, or add a new order to start the live workflow.</span><a class="btn" href="#/orders?f=done">Review &amp; reopen</a>${canEdit() ? `<a class="btn pri" href="#/orders">${ICON.plus}New order</a>` : ''}</div></div>`;
+  return `<div class="panel" style="margin-bottom:16px;border-color:var(--steel)"><div class="body row"><span style="flex:1;min-width:200px"><b>${fmtN(all.length)} old orders saved as history</b>${ds.length ? ` (${fmtD(ds[0])} – ${fmtD(ds[ds.length - 1])})` : ''}.<span class="only-desk"> Reopen any that are still running, or add a new order to start the live workflow.</span></span><a class="btn sm" href="#/orders?f=done">Reopen</a>${canEdit() ? `<a class="btn sm pri" href="#/orders">${ICON.plus}New order</a>` : ''}</div></div>`;
 }
 function viewDashboard() {
   const tab = S.ui.dtab || 'overview', period = S.ui.period || (hasDataIn('fy') ? 'fy' : 'all'), R = periodRange(period);
@@ -1544,7 +1557,7 @@ function viewDashboard() {
   const ops = (S.data.operations || []).filter(o => oIds.has(o.order_id) || (!o.order_id && inR(o.done_date || o.sent_date || o.start_date, R)));
   const kpi = (label, value, small, route, cls = '') => `<button class="kpi ${cls}" data-go="${route}"><span>${esc(label)}</span><b>${value}</b><small>${small || ''}</small></button>`;
   const empty = !(S.data.orders || []).length && !(S.data.parts || []).length;
-  const top = `<div class="toolbar">${tabs}<span class="spacer"></span>${seg('period', [['month', 'Month'], ['3m', '3 months'], ['fy', 'This FY'], ['lfy', 'Last FY'], ['all', 'All']], period)}${canEdit() ? `<button class="btn" data-digest title="Send the daily digest to managers now">${ICON.mail}<span class="only-desk">Digest</span></button>` : ''}</div>
+  const top = `<div class="toolbar">${tabs}<span class="spacer"></span>${seg('period', [['month', 'Month'], ['3m', '3 months'], ['fy', 'This FY'], ['lfy', 'Last FY'], ['all', 'All']], period)}${canEdit() ? `<button class="btn only-desk" data-digest title="Send the daily digest to managers now">${ICON.mail}<span class="only-desk">Digest</span></button>` : ''}</div>
   ${historyBanner()}${empty ? `<div class="panel" style="margin-bottom:16px"><div class="empty"><b>Start with an order</b>Record a jig or fixture order, add its child parts, and the app takes you through purchase, processes, monitoring and billing.<br>${canEdit() ? `<a class="btn pri" href="#/orders">${ICON.plus}New order</a> ` : ''}${isAdmin() ? `<a class="btn" href="#/settings?tab=data">${ICON.up}Import Excel workbook</a>` : ''}</div></div>` : ''}`;
   const after0 = () => { wireFilters(); $$('[data-go]').forEach(b => b.onclick = () => go(b.dataset.go)); $('[data-digest]')?.addEventListener('click', () => sendDigest(true).catch(e => fail(e))); };
   const C = () => ({ steel: cssVar('--steel'), amber: cssVar('--amber'), red: cssVar('--red'), green: cssVar('--green'), line: cssVar('--line'), muted: cssVar('--muted') });
@@ -1598,7 +1611,8 @@ function viewDashboard() {
       after0(); const c = C();
       const L = {}; for (const o of openOps) { const k = ownerName(o); L[k] ??= { g: 0, a: 0, r: 0 }; const l = opLight(o); l === 'red' ? L[k].r++ : l === 'amber' ? L[k].a++ : L[k].g++; }
       const ks = Object.keys(L).sort((a, b) => (L[b].r + L[b].a + L[b].g) - (L[a].r + L[a].a + L[a].g)).slice(0, 10);
-      mkChart('c_load', { type: 'bar', data: { labels: ks.map(short), datasets: [{ label: 'Late', data: ks.map(k => L[k].r), backgroundColor: c.red, borderRadius: 3 }, { label: 'Due soon', data: ks.map(k => L[k].a), backgroundColor: c.amber, borderRadius: 3 }, { label: 'On track', data: ks.map(k => L[k].g), backgroundColor: c.green, borderRadius: 3 }] }, legend: true, options: { indexAxis: 'y', scales: { x: { stacked: true, ticks: { precision: 0 }, grid: { color: c.line } }, y: { stacked: true, grid: { display: false } } }, onClick: (e, els) => { if (els[0]) { S.ui.q_proc = ks[els[0].index]; saveUI(); go('process'); } } } });
+      if (!ks.length) { const el = document.getElementById('c_load'); if (el) el.parentElement.innerHTML = '<div class="empty"><b>No open process steps</b>Workload appears here once orders are open and steps are assigned.</div>'; }
+      if (ks.length) mkChart('c_load', { type: 'bar', data: { labels: ks.map(short), datasets: [{ label: 'Late', data: ks.map(k => L[k].r), backgroundColor: c.red, borderRadius: 3 }, { label: 'Due soon', data: ks.map(k => L[k].a), backgroundColor: c.amber, borderRadius: 3 }, { label: 'On track', data: ks.map(k => L[k].g), backgroundColor: c.green, borderRadius: 3 }] }, legend: true, options: { indexAxis: 'y', scales: { x: { stacked: true, ticks: { precision: 0 }, grid: { color: c.line } }, y: { stacked: true, grid: { display: false } } }, onClick: (e, els) => { if (els[0]) { S.ui.q_proc = ks[els[0].index]; saveUI(); go('process'); } } } });
       const lab = k => MONTHS[+k.slice(5) - 1] + ' ' + k.slice(2, 4);
       const TH = {}; for (const x of S.data.operations || []) { if (x.status !== 'Done' || !inR(x.done_date, R)) continue; const k = x.done_date.slice(0, 7); TH[k] ??= { i: 0, s: 0 }; x.owner_type === 'Supplier' ? TH[k].s++ : TH[k].i++; }
       const tk = Object.keys(TH).sort().slice(-18);
@@ -1630,7 +1644,7 @@ function viewDashboard() {
       <section class="panel"><header><h3>RM cost by order</h3><p>plan vs actual</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_rmo"></canvas></div></div></section>
       <section class="panel"><header><h3>RM weight by grade</h3><p>planned vs received kg</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_rmg"></canvas></div></div></section>
     </div>
-    <section class="panel"><header><h3>Plan vs actual by order</h3><p>variance is measured on parts already received</p></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt"><thead><tr><th>Order</th><th class="r">Parts</th><th class="r">Plan kg</th><th class="r">Recd kg</th><th class="r">Plan cost</th><th class="r">Actual cost</th><th>Variance</th><th class="r">To buy</th></tr></thead><tbody>${rows.slice(0, 40).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td class="r num" data-label="Parts">${fmtN(x.n)}</td><td class="r num" data-label="Plan kg">${fmtN(x.pk, 1)}</td><td class="r num" data-label="Recd kg">${fmtN(x.ak, 1)}</td><td class="r num" data-label="Plan cost">${money(x.pc)}</td><td class="r num" data-label="Actual">${money(x.ac)}</td><td data-label="Variance">${varChip(x.pcr, x.pcr ? x.ac : null)}</td><td class="r num" data-label="To buy">${x.buy ? `<span class="chip amber">${x.buy}</span>` : '0'}</td></tr>`).join('') || '<tr><td class="muted">No RM plans in this period.</td></tr>'}</tbody></table></div></div></section>`;
+    <section class="panel"><header><h3>Plan vs actual by order</h3><p>variance is measured on parts already received</p></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Order</th><th class="r">Parts</th><th class="r">Plan kg</th><th class="r">Recd kg</th><th class="r">Plan cost</th><th class="r">Actual cost</th><th>Variance</th><th class="r">To buy</th></tr></thead><tbody>${rows.slice(0, S.ui.dash_all ? 80 : 10).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td class="r num" data-label="Parts">${fmtN(x.n)}</td><td class="r num" data-label="Plan kg">${fmtN(x.pk, 1)}</td><td class="r num" data-label="Recd kg">${fmtN(x.ak, 1)}</td><td class="r num" data-label="Plan cost">${money(x.pc)}</td><td class="r num" data-label="Actual">${money(x.ac)}</td><td data-label="Variance">${varChip(x.pcr, x.pcr ? x.ac : null)}</td><td class="r num" data-label="To buy">${x.buy ? `<span class="chip amber">${x.buy}</span>` : '0'}</td></tr>`).join('') || '<tr><td class="muted">No RM plans in this period.</td></tr>'}</tbody></table></div>${moreBtn(rows.length)}</div></section>`;
     after = () => {
       after0(); const c = C(); const top10 = rows.slice(0, 10);
       mkChart('c_rmo', { type: 'bar', data: { labels: top10.map(x => x.o.order_no), datasets: [{ label: 'Plan', data: top10.map(x => Math.round(x.pc)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Actual', data: top10.map(x => Math.round(x.ac)), backgroundColor: c.amber, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
@@ -1652,13 +1666,15 @@ function viewDashboard() {
       ${kpi('Actual on completed', moneyShort(act), `${fmtN(done.length)} steps done`, 'process?f=done')}
       ${kpi('Variance on completed', planDone ? `${act > planDone ? '+' : ''}${fmtN((act - planDone) / planDone * 100, 1)}%` : '—', planDone ? `plan ${moneyShort(planDone)}` : 'enter actual rates', 'process?f=done', act > planDone * 1.05 ? 'warn' : '')}
       ${kpi('Steps without a cost plan', fmtN(noPlan), 'add rate or hours', 'process?f=open', noPlan ? 'warn' : '')}
+      ${kpi('In-house machine hours', fmtN(C2.filter(o => o.owner_type === 'In-house').reduce((s, o) => s + (o._hours || 0), 0), 0), 'from start / end times', 'process?f=done')}
       ${kpi('Rejections', fmtN(C2.reduce((s, o) => s + (num(o.rejection_qty) || 0), 0)), 'debit ' + money(C2.reduce((s, o) => s + (num(o.debit_amount) || 0), 0)), 'process?f=done')}
     </div>
+    ${inhouseRatePanel(C2)}
     <div class="grid2">
       <section class="panel"><header><h3>Cost by process</h3><p>plan vs actual (completed steps)</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_pp"></canvas></div></div></section>
       <section class="panel"><header><h3>In-house vs outside</h3><p>share of process cost</p></header><div class="body"><div class="chartbox" style="height:300px"><canvas id="c_io"></canvas></div></div></section>
     </div>
-    <section class="panel"><header><h3>Plan vs actual by order</h3></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt"><thead><tr><th>Order</th><th class="r">Steps</th><th>Done</th><th class="r">Planned</th><th class="r">Actual (done)</th><th>Variance</th></tr></thead><tbody>${rows.slice(0, 40).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td class="r num" data-label="Steps">${fmtN(x.n)}</td><td data-label="Done"><div class="pcell">${pbar(x.n ? Math.round(x.d / x.n * 100) : 0)}</div></td><td class="r num" data-label="Planned">${money(x.p)}</td><td class="r num" data-label="Actual">${money(x.a)}</td><td data-label="Variance">${varChip(x.pd, x.pd ? x.a : null)}</td></tr>`).join('') || '<tr><td class="muted">No process plans in this period.</td></tr>'}</tbody></table></div></div></section>`;
+    <section class="panel"><header><h3>Plan vs actual by order</h3></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Order</th><th class="r">Steps</th><th>Done</th><th class="r">Planned</th><th class="r">Actual (done)</th><th>Variance</th></tr></thead><tbody>${rows.slice(0, S.ui.dash_all ? 80 : 10).map(x => `<tr data-order="${x.o.id}"><td class="first" data-label="Order"><span class="t">${esc(x.o.order_no)}</span><small>${esc(x.o.project)}</small></td><td class="r num" data-label="Steps">${fmtN(x.n)}</td><td data-label="Done"><div class="pcell">${pbar(x.n ? Math.round(x.d / x.n * 100) : 0)}</div></td><td class="r num" data-label="Planned">${money(x.p)}</td><td class="r num" data-label="Actual">${money(x.a)}</td><td data-label="Variance">${varChip(x.pd, x.pd ? x.a : null)}</td></tr>`).join('') || '<tr><td class="muted">No process plans in this period.</td></tr>'}</tbody></table></div>${moreBtn(rows.length)}</div></section>`;
     after = () => {
       after0(); const c = C();
       mkChart('c_pp', { type: 'bar', data: { labels: pk.map(short), datasets: [{ label: 'Plan (done)', data: pk.map(k => Math.round(byP[k].pd)), backgroundColor: c.steel, borderRadius: 3 }, { label: 'Actual', data: pk.map(k => Math.round(byP[k].a)), backgroundColor: c.amber, borderRadius: 3 }] }, legend: true, options: { scales: { y: { beginAtZero: true, ticks: { callback: v => moneyShort(v) }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
@@ -1691,7 +1707,7 @@ function viewDashboard() {
       <section class="panel"><header><h3>On-time delivery by month</h3><p>% of orders delivered by the committed date</p></header><div class="body"><div class="chartbox"><canvas id="c_otd"></canvas></div></div></section>
       <section class="panel"><header><h3>Receivables ageing</h3><p>days past due date</p></header><div class="body"><div class="chartbox"><canvas id="c_rag"></canvas></div></div></section>
     </div>
-    <section class="panel"><header><h3>By customer</h3></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt"><thead><tr><th>Customer</th><th class="r">Delivered</th><th>On time</th><th class="r">Receivable</th></tr></thead><tbody>${uniq([...Object.keys(byC), ...inv.map(o => o.customer || '—')]).map(k => { const x = byC[k] || { n: 0, ot: 0 }; const r = inv.filter(o => (o.customer || '—') === k).reduce((s, o) => s + computeRow('orders', o).outstanding, 0); const p = x.n ? Math.round(x.ot / x.n * 100) : null; return `<tr><td class="first" data-label="Customer"><span class="t">${esc(k)}</span></td><td class="r num" data-label="Delivered">${fmtN(x.n)}</td><td data-label="On time">${p == null ? '—' : `<span class="chip ${p >= 90 ? 'green' : p >= 75 ? 'amber' : 'red'}">${p}%</span>`}</td><td class="r num" data-label="Receivable">${money(r)}</td></tr>`; }).join('') || '<tr><td class="muted">Record delivered dates and invoices on orders to see this.</td></tr>'}</tbody></table></div></div></section>`;
+    <section class="panel"><header><h3>By customer</h3></header><div class="body" style="padding-top:6px"><div class="tablewrap"><table class="dt mini"><thead><tr><th>Customer</th><th class="r">Delivered</th><th>On time</th><th class="r">Receivable</th></tr></thead><tbody>${uniq([...Object.keys(byC), ...inv.map(o => o.customer || '—')]).map(k => { const x = byC[k] || { n: 0, ot: 0 }; const r = inv.filter(o => (o.customer || '—') === k).reduce((s, o) => s + computeRow('orders', o).outstanding, 0); const p = x.n ? Math.round(x.ot / x.n * 100) : null; return `<tr><td class="first" data-label="Customer"><span class="t">${esc(k)}</span></td><td class="r num" data-label="Delivered">${fmtN(x.n)}</td><td data-label="On time">${p == null ? '—' : `<span class="chip ${p >= 90 ? 'green' : p >= 75 ? 'amber' : 'red'}">${p}%</span>`}</td><td class="r num" data-label="Receivable">${money(r)}</td></tr>`; }).join('') || '<tr><td class="muted">Record delivered dates and invoices on orders to see this.</td></tr>'}</tbody></table></div></div></section>`;
     after = () => {
       after0(); const c = C();
       mkChart('c_otd', { type: 'line', data: { labels: mk.map(k => MONTHS[+k.slice(5) - 1] + ' ' + k.slice(2, 4)), datasets: [{ data: mk.map(k => Math.round(months[k].ot / months[k].n * 100)), borderColor: c.steel, backgroundColor: c.steel, tension: .3, pointRadius: 4 }] }, options: { scales: { y: { min: 0, max: 100, ticks: { callback: v => v + '%' }, grid: { color: c.line } }, x: { grid: { display: false } } } } });
@@ -1725,6 +1741,21 @@ function viewDashboard() {
   }
   return { title: 'Dashboard', sub: `${S.settings.company_name || 'Overview'} · ${fmtD(today())}`, html, after };
 }
+function moreBtn(n) { return n > 10 ? `<div class="more">${S.ui.dash_all ? '' : `Top 10 of ${fmtN(n)}`}<button class="btn sm" data-dall>${S.ui.dash_all ? 'Show fewer' : 'Show all'}</button></div>` : ''; }
+document.addEventListener('click', e => { if (e.target.closest('[data-dall]')) { S.ui.dash_all = !S.ui.dash_all; saveUI(); S._keepScroll = true; render(); } });
+function inhouseRatePanel(C2) {
+  const ih = C2.filter(o => o.owner_type === 'In-house');
+  const by = {}; for (const o of ih) { const k = o.process || '—'; by[k] ??= { n: 0, h: 0, cost: 0 }; by[k].n++; by[k].h += o._hours || 0; by[k].cost += o.actual_cost || 0; }
+  const miss = Object.entries(by).filter(([k, x]) => !x.cost && k !== '—');
+  if (!miss.length) return '';
+  return `<section class="panel" style="margin-bottom:16px;border-color:var(--amber)"><header><h3>In-house work has no cost yet</h3></header><div class="body"><p class="muted" style="margin-top:0;font-size:13.5px">Your machine times are recorded, but a cost needs an hour rate. Enter the rate per hour for each in-house process — costs for all past and future steps are worked out at once.</p>
+  <div class="needgrid">${miss.map(([k, x]) => `<div class="need"><b>${esc(k)}</b><small>${fmtN(x.n)} steps · ${fmtN(x.h, 1)} machine hours</small>${canEdit() ? `<div class="row" style="margin-top:8px;gap:6px;flex-wrap:nowrap"><input class="cell num" type="number" step="any" min="0" placeholder="₹ / hour" data-hr="${esc(k)}" style="max-width:110px"><button class="btn sm pri" data-hrs="${esc(k)}">Save</button></div>` : ''}</div>`).join('')}</div></div></section>`;
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-hrs]'); if (!b) return;
+  const k = b.dataset.hrs, inp = document.querySelector(`[data-hr="${CSS.escape(k)}"]`); const v = num(inp?.value); if (!v) return toast('Enter the rate per hour first.');
+  try { let m = procMaster(k); if (m) await DB.update('masters', m.id, { extra: { ...m.extra, hour_rate: v, in_house: true } }); else await DB.insert('masters', { category: 'process', value: k, extra: { hour_rate: v, in_house: true }, sort: 50 }); toast(`${k}: ${money(v)}/hour saved — in-house costs updated.`); S._keepScroll = true; render(); } catch (x) { fail(x); }
+});
 function orderBoard(list) {
   if (!list.length) return '<div class="muted">No open orders.</div>';
   return `<div class="oboard">${list.map(o => { const pr = orderProgress(o); const l = orderLight(o); const d = o.delivery_date ? daysBetween(today(), o.delivery_date) : null; return `<button class="orow" data-order="${o.id}"><span class="lampdot ${l}"></span><span class="grow"><b>${esc(o.order_no)} · ${esc(o.project)}</b><small>${esc(o.customer || '')}${o.delivery_date ? ` · delivery ${fmtD(o.delivery_date)}` : ''}</small></span><span class="pcell">${pbar(pr.pct, l)}</span><span class="chip ${l === 'done' ? 'nodot' : l}">${d == null ? 'no date' : d < 0 ? `${-d} d late` : d === 0 ? 'today' : `${d} d left`}</span></button>`; }).join('')}</div>`;
@@ -2513,7 +2544,7 @@ const MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, se
 const validYMD = (y, m, d) => { y = +y; m = +m; d = +d; if (!(y > 1990 && y < 2100 && m >= 1 && m <= 12 && d >= 1)) return null; if (d > new Date(y, m, 0).getDate()) return null; return `${y}-${pad(m)}-${pad(d)}`; };
 function xDate(v) {
   if (v == null || v === '') return null;
-  if (isDate(v)) return isNaN(v) ? null : isoDate(new Date(v.getTime() + 12 * 3600e3));
+  if (isDate(v)) { if (isNaN(v)) return null; const d = isoDate(new Date(v.getTime() + 12 * 3600e3)); return d < '2000-01-01' ? null : d; }
   if (typeof v === 'number' && v > 20000 && v < 80000) return isoDate(new Date(Math.round((v - 25569) * 864e5) + 12 * 3600e3));
   const s = String(v).trim(); let m;
   if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s))) return validYMD(m[1], m[2], m[3]);
@@ -2636,7 +2667,7 @@ function rowToObj(r, map, table) {
   const o = {};
   for (const [i, key] of Object.entries(map)) {
     const v = r[i];
-    if (DATES.has(key) || LEGACY_DATES.has(key)) { o[key] = xDate(v); if (o[key] == null && v != null && String(v).trim() && !isDate(v)) o['_txt_' + key] = String(v).trim(); }
+    if (DATES.has(key) || LEGACY_DATES.has(key)) { o[key] = xDate(v); if (o[key] == null && v != null && String(v).trim()) o['_txt_' + key] = isDate(v) ? (isNaN(v) ? 'invalid date' : isoDate(new Date(v.getTime() + 12 * 3600e3))) : String(v).trim(); }
     else if (key === 'start_time' || key === 'end_time') o[key] = xTime(v);
     else if (NUMERIC.has(key)) { const n = typeof v === 'number' ? v : num(v); o[key] = n; if (typeof v === 'string' && v.trim() && String(n) !== v.trim()) o['_txt_' + key] = v.trim(); }
     else if (key === 'tags') o[key] = String(v || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -2756,7 +2787,7 @@ async function buildWorkflowFromLegacy(P, closedSet, log) {
   if (missing.size) { log(`Adding ${missing.size} parts found only in the process sheets…`); await DB.insert('parts', [...missing.values()]); }
   res.parts = (res.parts || 0) + missing.size;
   const partFor = (drg, project) => { const c = (S.data.parts || []).filter(p => norm(p.drawing_no) === norm(drg)); return c.find(p => orderById(p.order_id) && pk(orderById(p.order_id).project) === pk(project)) || c.find(p => orderById(p.order_id) && orderById(p.order_id) === orderFor(drg, project)) || c[0] || null; };
-  const outTxt = t => { if (!t) return null; const m = /^(\d+)\/([a-z]{3})[a-z]*\/(\d{2})$/i.exec(t); if (m) { let d = +m[1]; if (d > 31 && String(d).endsWith(m[3])) d = +String(d).slice(0, -2); return { done: true, date: d >= 1 && d <= 31 ? xDate(`${d}/${m[2]}/${m[3]}`) : null }; } if (/reject/i.test(t)) return { done: true, date: null, rejected: true }; return { done: false }; };
+  const outTxt = t => { if (!t) return null; const m = /^(\d+)\/([a-z]{3})[a-z]*\/(\d{2})$/i.exec(t); if (m) { let d = +m[1]; if (d > 31 && String(d).endsWith(m[3])) d = +String(d).slice(0, -2); return { done: true, date: d >= 1 && d <= 31 ? xDate(`${d}/${m[2]}/${m[3]}`) : null }; } if (/reject/i.test(t)) return { done: true, date: null, rejected: true }; if (/^1[89]\d\d-/.test(t)) return { done: true, date: null }; return { done: false }; };
   const proc = normProc;
   const ops = [];
   for (const j of P.jobs || []) {
@@ -3040,7 +3071,8 @@ const SETTINGS_TABS = {
             $('#xgo').onclick = async () => {
               const mode = $('input[name="im"]:checked').value;
               if ((mode === 'replace' || P.restore) && !(await confirmBox(P.restore ? 'Restore this backup?' : 'Replace existing data?', 'Everything currently in the app will be deleted first.', P.restore ? 'Restore' : 'Replace'))) return;
-              $('#xgo').disabled = true; $('#xlog').classList.remove('hidden');
+              $('#xgo').disabled = true; $('#xlog').classList.remove('hidden'); toast('Importing — keep this screen open and the phone unlocked until it says Done. If it gets interrupted, just import the same file again: it continues where it stopped.', [], 12000);
+              const guard = e => { e.preventDefault(); e.returnValue = ''; }; window.addEventListener('beforeunload', guard); setTimeout(() => window.removeEventListener('beforeunload', guard), 600000);
               const log = (m, p) => { $('#xmsg') && ($('#xmsg').textContent = m); if (p != null && $('#xlog i')) $('#xlog i').style.width = Math.round(p * 100) + '%'; };
               try { const r = await writeImport(P, mode, log); log('Done.', 1); render(); toast(P.restore ? 'Backup restored.' : `Imported ${fmtN(r.orders)} orders, ${fmtN(r.parts)} parts, ${fmtN(r.operations)} process steps, ${fmtN(r.suppliers)} suppliers.`, [{ label: 'Open dashboard', route: 'dashboard' }], 9000); }
               catch (err) { fail(err, 'Import stopped'); $('#xgo').disabled = false; }
