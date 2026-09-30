@@ -23,6 +23,9 @@ create table if not exists operations (id uuid primary key default gen_random_uu
 create table if not exists tasks (id uuid primary key default gen_random_uuid(), title text not null, details text, assigned_to uuid, assigned_by text, due_date date, priority text default 'Normal', status text default 'Open', link_table text, link_id uuid, drawing_no text, completed_at timestamptz, created_by text, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists notifications (id uuid primary key default gen_random_uuid(), recipient_email text, recipient_team uuid, title text, body text, link text, is_read boolean default false, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists activity (id uuid primary key default gen_random_uuid(), actor text, action text, entity text, entity_id uuid, summary text, created_at timestamptz default now(), updated_at timestamptz default now());
+alter table team add column if not exists username text;
+create unique index if not exists team_username_uq on team (lower(username)) where username is not null;
+create table if not exists push_subscriptions (id uuid primary key default gen_random_uuid(), user_email text not null, endpoint text not null unique, p256dh text, auth text, created_at timestamptz default now());
 create index if not exists parts_order on parts (order_id);
 create index if not exists parts_drawing on parts (drawing_no);
 create index if not exists ops_part on operations (part_id);
@@ -44,9 +47,18 @@ end $$;
 
 -- role of the signed-in person: admin | editor | member | viewer
 create or replace function app_role() returns text language sql stable security definer set search_path = public as
-$$ select coalesce((select role from profiles where id = auth.uid()), 'none') $$;
+$$ select case
+     when r.role is null then 'none'
+     when r.role = 'admin' then 'admin'
+     when lower(coalesce(auth.jwt()->>'email','')) like '%@users.vahan.invalid'
+          then case when coalesce((select value from app_settings where key = 'login_username'), 'true'::jsonb) = 'true'::jsonb then r.role else 'none' end
+     else case when coalesce((select value from app_settings where key = 'login_email'), 'true'::jsonb) = 'false'::jsonb then 'none' else r.role end
+   end
+   from (select (select role from profiles where id = auth.uid()) as role) r $$;
+-- admin-created username accounts sign in as <username>@users.vahan.invalid (no real mailbox)
 create or replace function my_team_id() returns uuid language sql stable security definer set search_path = public as
-$$ select id from team where lower(email) = lower(auth.jwt()->>'email') limit 1 $$;
+$$ select id from team where lower(email) = lower(auth.jwt()->>'email')
+      or (username is not null and lower(username) || '@users.vahan.invalid' = lower(auth.jwt()->>'email')) limit 1 $$;
 
 -- first person to sign up becomes admin; everyone after waits with no access ('none') until an admin gives them a role
 create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
@@ -72,7 +84,7 @@ do $$ declare t text; begin
     execute format('drop policy if exists "write" on %I', t);
     execute format('create policy "read" on %I for select to authenticated using (app_role() <> ''none'')', t);
   end loop;
-  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks'] loop
+  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations'] loop
     execute format('create policy "write" on %I for all to authenticated using (app_role() in (''admin'',''editor'')) with check (app_role() in (''admin'',''editor''))', t);
   end loop;
   -- CallMeBot keys: admins and editors only (replaces the general read policy)
@@ -93,13 +105,34 @@ do $$ declare t text; begin
   execute 'create policy "write" on app_settings for all to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
   execute 'create policy "write" on profiles for update to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
 end $$;
--- members may update the tasks and process steps assigned to them
+-- TASKS ARE PRIVATE: only the person a task is assigned to, the person who assigned it, and admins can see or change it
+drop policy if exists "read" on tasks;
+drop policy if exists "write" on tasks;
 drop policy if exists "member tasks" on tasks;
-create policy "member tasks" on tasks for update to authenticated using (assigned_to = my_team_id()) with check (assigned_to = my_team_id());
+drop policy if exists "tasks admin" on tasks;
+drop policy if exists "tasks read" on tasks;
+drop policy if exists "tasks insert" on tasks;
+drop policy if exists "tasks update" on tasks;
+drop policy if exists "tasks delete" on tasks;
+create policy "tasks admin" on tasks for all to authenticated using (app_role() = 'admin') with check (app_role() = 'admin');
+create policy "tasks read" on tasks for select to authenticated using (app_role() <> 'none' and (assigned_to = my_team_id() or lower(created_by) = lower(auth.jwt()->>'email')));
+create policy "tasks insert" on tasks for insert to authenticated with check (app_role() in ('editor') and lower(created_by) = lower(auth.jwt()->>'email'));
+create policy "tasks update" on tasks for update to authenticated using (app_role() in ('editor','member') and (assigned_to = my_team_id() or lower(created_by) = lower(auth.jwt()->>'email'))) with check (app_role() in ('editor','member') and (assigned_to = my_team_id() or lower(created_by) = lower(auth.jwt()->>'email')));
+create policy "tasks delete" on tasks for delete to authenticated using (app_role() = 'editor' and lower(created_by) = lower(auth.jwt()->>'email'));
+-- older tasks: remember who assigned them (matched by name), and clear task titles from the shared activity log
+update tasks set created_by = coalesce((select lower(email) from team where lower(name) = lower(tasks.assigned_by) and coalesce(email,'') <> '' limit 1),
+                                       (select lower(username) || '@users.vahan.invalid' from team where lower(name) = lower(tasks.assigned_by) and username is not null limit 1))
+  where created_by is null and assigned_by is not null;
+delete from activity where entity = 'tasks';
+
+-- phone (push) notification subscriptions: each person manages only their own devices
+alter table push_subscriptions enable row level security;
+drop policy if exists "own subs" on push_subscriptions;
+create policy "own subs" on push_subscriptions for all to authenticated using (lower(user_email) = lower(auth.jwt()->>'email')) with check (lower(user_email) = lower(auth.jwt()->>'email'));
 drop policy if exists "member ops" on operations;
 create policy "member ops" on operations for update to authenticated using (owner_member = my_team_id() or follow_up = my_team_id()) with check (owner_member = my_team_id() or follow_up = my_team_id());
 drop policy if exists "brand" on app_settings;
-create policy "brand" on app_settings for select to anon using (key in ('company_name','logo','app_title'));
+create policy "brand" on app_settings for select to anon, authenticated using (key in ('company_name','logo','app_title','login_email','login_username'));
 
 -- live updates for everyone
 do $$ declare t text; begin

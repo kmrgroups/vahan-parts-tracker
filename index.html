@@ -8,6 +8,9 @@
 <meta name="theme-color" content="#16202B">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Parts Tracker">
 <title>Child Parts Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Narrow:wght@500;600&display=swap" rel="stylesheet">
@@ -488,7 +491,8 @@ const DEFAULT_SETTINGS = {
   due_soon_days: 2, order_warn_days: 7, alert_lookback_days: 120, default_credit_days: 30,
   weight_factor: 0.00000786, fy_start_month: 4, company_address: '', company_gst: '',
   emailjs: { service_id: '', template_id: '', public_key: '' },
-  whatsapp_auto: true, digest_auto: true, digest_last: '', app_url: '', default_role: 'none', stuck_days: 7
+  whatsapp_auto: true, digest_auto: true, digest_last: '', app_url: '', default_role: 'none', stuck_days: 7,
+  login_email: true, login_username: true, notif_all: true, notif_email: true, notif_whatsapp: true, notif_push: true, vapid_public: ''
 };
 
 /* Starter options — created once so a fresh workspace is usable. All editable in Settings → Lists. */
@@ -501,8 +505,10 @@ const MASTER_CATS = {
   part_type: { label: 'Part types', hint: 'Types containing "rod" or "hex" use the diameter for weight.' },
   inspection: { label: 'Inspection results', hint: 'Options for inspection on each process.' },
   hold_reason: { label: 'Hold reasons', hint: 'Why a process is on hold, e.g. Waiting for drawing, Machine breakdown.' },
+  team_tag: { label: 'Team “Works as” roles', hint: 'The tick-boxes on the Team form. Keep “Manager” (daily digest) and “Planner” — other parts of the app look for those names.' },
 };
 const TEAM_TAGS = ['Planner', 'Machine operator', 'Moves parts', 'Purchase', 'Accounts', 'Manager'];
+const teamTagOptions = () => uniq([...mvals('team_tag'), ...(S.data.team || []).flatMap(t => t.tags || [])]);
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
 const TASK_STATUS = ['Open', 'In progress', 'Blocked', 'Done'];
 const ORDER_STATUS = ['Open', 'In production', 'Ready to dispatch', 'Delivered', 'Closed', 'Cancelled'];
@@ -691,7 +697,7 @@ const SCHEMA = {
     F('name', 'Name', 'text', { req: 1 }),
     F('phone', 'WhatsApp number', 'tel', { hint: 'With or without country code.' }),
     F('email', 'Email', 'email', { hint: 'Use the same email they sign in with.' }),
-    F('tags', 'Works as', 'tags', { opts: () => TEAM_TAGS, full: 1, hint: 'Controls which lists they appear in. Managers get the daily digest.' }),
+    F('tags', 'Works as', 'tags', { opts: () => teamTagOptions(), full: 1, hint: 'Controls which lists they appear in. Managers get the daily digest.' }),
     F('notify_email', 'Send email alerts', 'bool', { def: () => true }),
     F('notify_whatsapp', 'Send WhatsApp alerts', 'bool', { def: () => true }),
     F('wa_apikey', 'CallMeBot key (optional)', 'text', { full: 1, hint: 'Makes WhatsApp alerts fully automatic for this person. Only admins and editors can see it. See Settings → Notifications.' }),
@@ -1015,6 +1021,9 @@ async function loadAll() {
     await DB.insert('masters', STARTER_MASTERS.map(([category, value, extra], i) => ({ category, value, extra: extra || {}, sort: i })));
     await DB.setSetting('seeded', true);
   }
+  if (DB.canWrite('masters') && !masters('team_tag').length && !(S.data.app_settings || []).some(r => r.key === 'team_tags_seeded')) {
+    try { await DB.insert('masters', TEAM_TAGS.map((value, i) => ({ category: 'team_tag', value, extra: {}, sort: i }))); await DB.setSetting('team_tags_seeded', true); } catch (e) { console.warn('team tags', e); }
+  }
 }
 
 /* ================= identity & roles ================= */
@@ -1022,15 +1031,21 @@ function myRole() {
   if (S.mode === 'local') return 'admin';
   return S.profile?.role || 'none';
 }
+const USER_DOMAIN = 'users.vahan.invalid'; // username logins are stored as <username>@users.vahan.invalid (no real mailbox)
+const userEmail = u => norm(u) + '@' + USER_DOMAIN;
+const isUserAcct = e => norm(e).endsWith('@' + USER_DOMAIN);
+const memberLogin = m => m ? (m.username ? userEmail(m.username) : (norm(m.email) || null)) : null;
+const chanOn = k => S.settings.notif_all !== false && S.settings[k] !== false;
 function me() {
   if (S.mode === 'local') return { name: 'You (this device)', email: '' };
-  const t = (S.data.team || []).find(x => norm(x.email) && norm(x.email) === norm(S.profile?.email));
+  const t = (S.data.team || []).find(x => (norm(x.email) && norm(x.email) === norm(S.profile?.email)) || (x.username && userEmail(x.username) === norm(S.profile?.email)));
   return { name: t?.name || S.profile?.full_name || S.profile?.email || 'You', email: S.profile?.email || '', team: t };
 }
 const canEdit = () => ['admin', 'editor'].includes(myRole());
 const isAdmin = () => myRole() === 'admin';
 
 async function logActivity(action, entity, rec, summary) {
+  if (entity === 'tasks') return; // task titles are private — keep them out of the shared activity log
   try { await DB.insert('activity', { actor: me().name, action, entity, entity_id: rec?.id || null, summary }); } catch (e) { console.warn('activity', e); }
 }
 
@@ -1066,17 +1081,22 @@ function sendCallMeBot(phone, apikey, text) {
   return fetch(url, { mode: 'no-cors' });
 }
 
+/** App-only notification (bell + phone push). Used for tasks: no email, no WhatsApp. */
+async function notifyInApp(toEmail, { title, body = '', route = '', team = null }) {
+  if (!toEmail || S.settings.notif_all === false) return false;
+  try { await DB.insert('notifications', { recipient_email: norm(toEmail), recipient_team: team, title, body, link: route }); return true; } catch (e) { console.warn(e); return false; }
+}
 /** Notify one team member on every channel available. Returns manual fallbacks for a toast. */
 async function notify(member, { title, body = '', route = '' }, opts = {}) {
   if (!member) return;
   const full = `${title}\n${body}${appLink(route) ? '\n\nOpen: ' + appLink(route) : ''}`;
-  try { await DB.insert('notifications', { recipient_email: norm(member.email) || null, recipient_team: member.id, title, body, link: route }); } catch (e) { console.warn(e); }
+  if (S.settings.notif_all !== false) try { await DB.insert('notifications', { recipient_email: memberLogin(member), recipient_team: member.id, title, body, link: route }); } catch (e) { console.warn(e); }
   const sent = [], manual = [];
-  if (member.email && member.notify_email !== false) {
+  if (member.email && member.notify_email !== false && chanOn('notif_email')) {
     if (emailReady()) { try { await sendEmail(member.email, member.name, title, body, route); sent.push('email'); } catch (e) { console.warn(e); manual.push({ label: 'Email', href: mailLink(member.email, title, full) }); } }
     else manual.push({ label: 'Email', href: mailLink(member.email, title, full) });
   }
-  if (member.phone && member.notify_whatsapp !== false) {
+  if (member.phone && member.notify_whatsapp !== false && chanOn('notif_whatsapp')) {
     if (member.wa_apikey && S.settings.whatsapp_auto !== false) { try { await sendCallMeBot(member.phone, member.wa_apikey, full); sent.push('WhatsApp'); } catch (e) { manual.push({ label: 'WhatsApp', href: waLink(member.phone, full), wa: 1 }); } }
     else manual.push({ label: 'WhatsApp', href: waLink(member.phone, full), wa: 1 });
   }
@@ -1343,6 +1363,18 @@ function wireForm(form, table, rec) {
   $$('[data-close-link]', form).forEach(a => a.addEventListener('click', closeOverlay));
 }
 
+/** Team form: a switch that masks the phone, email and CallMeBot key on screen (for privacy when someone is looking over your shoulder). */
+function addContactMask(form) {
+  const ph = form.querySelector('[data-field="phone"]'); if (!ph) return;
+  const box = document.createElement('div'); box.className = 'field full';
+  box.innerHTML = '<button type="button" class="btn sm" data-mask></button>';
+  ph.parentNode.insertBefore(box, ph);
+  const btn = box.firstChild;
+  const apply = () => { const h = !!S.ui.hideContacts; $$('[name="phone"],[name="email"],[name="wa_apikey"]', form).forEach(el => { el.style.setProperty('-webkit-text-security', h ? 'disc' : 'none'); el.setAttribute('autocomplete', 'off'); }); btn.textContent = h ? 'Show phone & email' : 'Hide phone & email'; };
+  btn.onclick = () => { S.ui.hideContacts = !S.ui.hideContacts; saveUI(); apply(); };
+  apply();
+}
+
 /** Generic record editor for any table in SCHEMA. */
 function openRecord(table, rec = null, opts = {}) {
   const isNew = !rec?.id;
@@ -1359,6 +1391,7 @@ function openRecord(table, rec = null, opts = {}) {
   const form = $('#recform', d);
   if (!writable) $$('input,select,textarea', form).forEach(x => x.disabled = true);
   wireForm(form, table, base);
+  if (table === 'team') addContactMask(form);
   d.querySelector('[data-cancel]').onclick = closeOverlay;
   form.addEventListener('submit', e => { e.preventDefault(); d.querySelector('[data-save]')?.click(); });
   d.querySelector('[data-del]')?.addEventListener('click', async () => {
@@ -1394,11 +1427,17 @@ async function afterSave(table, rec, before) {
   const who = me().name;
   if (table === 'tasks' && rec.assigned_to && (rec.assigned_to !== before.assigned_to)) {
     S._toasted = true;
-    await notify(teamById(rec.assigned_to), { title: `New task from ${who}: ${rec.title}`, body: `${rec.priority || 'Normal'} priority${rec.due_date ? ' · due ' + fmtD(rec.due_date) : ''}${rec.drawing_no ? ' · drawing ' + rec.drawing_no : ''}${rec.details ? '\n' + rec.details : ''}`, route: 'mywork?tab=tasks' });
+    const m = teamById(rec.assigned_to), to = memberLogin(m);
+    const ok = await notifyInApp(to, { title: `New task from ${who}: ${rec.title}`, body: `${rec.priority || 'Normal'} priority${rec.due_date ? ' · due ' + fmtD(rec.due_date) : ''}${rec.drawing_no ? ' · drawing ' + rec.drawing_no : ''}${rec.details ? '\n' + rec.details : ''}`, route: 'mywork?tab=tasks', team: m?.id });
+    toast(ok ? `${m.name} notified in the app.` : `Task saved. ${m?.name || 'That person'} has no app login yet, so no notification was sent — add an email or username for them on the Team page.`, [], 7000, !ok);
   }
-  if (table === 'tasks' && rec.status === 'Done' && before.status && before.status !== 'Done') {
-    const by = teamByName(rec.assigned_by);
-    if (by && by.id !== me().team?.id) { S._toasted = true; await notify(by, { title: `Task done: ${rec.title}`, body: `Completed by ${who}`, route: 'mywork?tab=tasks' }); }
+  if (table === 'tasks' && before.id && (rec.status !== before.status || (rec.details || '') !== (before.details || ''))) {
+    const to = norm(rec.created_by); // whoever assigned the task
+    if (to && to !== norm(S.profile?.email)) {
+      S._toasted = true;
+      const what = rec.status === 'Done' ? 'Task done' : rec.status !== before.status ? `Task ${rec.status.toLowerCase()}` : 'Task updated';
+      await notifyInApp(to, { title: `${what}: ${rec.title}`, body: `${who} ${rec.status !== before.status ? 'set it to ' + rec.status : 'added an update'}${rec.details && rec.details !== before.details ? '\n' + rec.details : ''}`, route: 'mywork?tab=tasks' });
+    }
   }
   if (table === 'operations') await afterOpSave(rec, before);
 }
@@ -2399,11 +2438,11 @@ function viewMyWork() {
 
 /* ================= tasks (inside My work) ================= */
 function viewTasks() {
-  const scope = S.ui.tscope || (me().team ? 'mine' : 'all'), st = S.ui.tstatus || 'active', q = S.ui.q_tasks || '';
+  const scope = (S.ui.tscope === 'all' && !isAdmin()) ? 'mine' : (S.ui.tscope || (me().team ? 'mine' : (isAdmin() ? 'all' : 'byme'))), st = S.ui.tstatus || 'active', q = S.ui.q_tasks || '';
   const my = me().team?.id;
   let rows = (S.data.tasks || []).filter(t => {
     if (scope === 'mine' && t.assigned_to !== my) return false;
-    if (scope === 'byme' && norm(t.assigned_by) !== norm(me().name)) return false;
+    if (scope === 'byme' && norm(t.created_by) !== norm(S.profile?.email) && norm(t.assigned_by) !== norm(me().name)) return false;
     if (st === 'active' && t.status === 'Done') return false;
     if (st === 'done' && t.status !== 'Done') return false;
     return matchQ(t, q, ['title', 'details', 'drawing_no']) || norm(teamById(t.assigned_to)?.name).includes(norm(q));
@@ -2418,8 +2457,8 @@ function viewTasks() {
     { key: 'status', label: 'Status', html: t => lightChip(taskLight(t), t.status) },
     { key: 'acts', label: '', cls: 'acts', html: t => taskQuick(t) },
   ];
-  const html = `<div class="toolbar">${seg('tscope', [['mine', 'My tasks'], ['byme', 'Assigned by me'], ['all', 'Everyone']], scope)}${seg('tstatus', [['active', 'Open'], ['done', 'Done'], ['any', 'All']], st)}${searchBox('tasks', 'Search tasks')}<span class="spacer"></span>${addBtn('New task', 'data-newtask')}</div>
-  ${rows.length ? dataTable('tasks', rows, cols, { onRow: t => openRecord('tasks', t), lamp: t => taskLight(t) === 'done' ? '' : taskLight(t) }) : `<div class="panel"><div class="empty"><b>No tasks here</b>${canEdit() ? 'Tasks are for anything outside the process route — create one, or assign one from an alert.' : ''}</div></div>`}`;
+  const html = `<div class="toolbar">${seg('tscope', [['mine', 'My tasks'], ['byme', 'Assigned by me'], ...(isAdmin() ? [['all', 'Everyone']] : [])], scope)}${seg('tstatus', [['active', 'Open'], ['done', 'Done'], ['any', 'All']], st)}${searchBox('tasks', 'Search tasks')}<span class="spacer"></span>${addBtn('New task', 'data-newtask')}</div>
+  ${rows.length ? dataTable('tasks', rows, cols, { onRow: t => openRecord('tasks', t), lamp: t => taskLight(t) === 'done' ? '' : taskLight(t) }) : `<div class="panel"><div class="empty"><b>No tasks here</b>${canEdit() ? 'Tasks are private: only the person they are given to, the person who gave them, and admins can see a task.' : 'You only see tasks given to you.'}</div></div>`}`;
   const after = () => {
     wireFilters();
     $('[data-newtask]')?.addEventListener('click', () => openRecord('tasks', { assigned_by: me().name }));
@@ -2528,17 +2567,18 @@ function viewTeam() {
   const load = t => (S.data.operations || []).filter(o => o.status !== 'Done' && o.owner_member === t.id && (o.order_id ? !ORDER_DONE.has(orderById(o.order_id)?.status) : o.alert_state !== 'late')).length + (S.data.tasks || []).filter(k => k.assigned_to === t.id && k.status !== 'Done').length;
   const cols = [
     { key: 'name', label: 'Name', first: 1, html: t => `<span class="t">${esc(t.name)}</span>${t.active === false ? ' <span class="chip nodot">Inactive</span>' : ''}<small>${esc((t.tags || []).join(', ') || 'No role tags')}</small>` },
-    { key: 'phone', label: 'WhatsApp', html: t => t.phone ? `<span class="num">${esc(t.phone)}</span>${t.wa_apikey ? ' <span class="chip green">auto</span>' : ''}` : '<span class="muted">—</span>' },
-    { key: 'email', label: 'Email', html: t => esc(t.email || '—') },
+    { key: 'phone', label: 'WhatsApp', html: t => t.phone ? `<span class="num">${S.ui.hideContacts ? '••••••••••' : esc(t.phone)}</span>${t.wa_apikey ? ' <span class="chip green">auto</span>' : ''}` : '<span class="muted">—</span>' },
+    { key: 'email', label: 'Email', html: t => S.ui.hideContacts && t.email ? '••••••••' : esc(t.email || (t.username ? '@' + t.username : '—')) },
     { key: 'load', label: 'Open work', cls: 'r num', val: load, html: t => fmtN(load(t)) },
     { key: 'acts', label: '', cls: 'acts', html: t => canEdit() ? `<button class="btn sm" data-task="${t.id}">Assign task</button>` : '' },
   ];
   const html = `<p class="lede">Planners, operators, people who move parts, purchase and accounts. Add a WhatsApp number and email so assignments reach them. ${S.mode === 'cloud' ? 'To give someone sign-in access, add them here with the same email and share the invite link.' : ''}</p>
-  <div class="toolbar">${searchBox('team', 'Search team…')}<span class="spacer"></span>${addBtn('Add person', 'data-new')}</div>
+  <div class="toolbar">${searchBox('team', 'Search team…')}<span class="spacer"></span><button class="btn" data-hidec>${S.ui.hideContacts ? 'Show phone & email' : 'Hide phone & email'}</button>${addBtn('Add person', 'data-new')}</div>
   ${rows.length ? dataTable('team', rows, cols, { onRow: t => openRecord('team', t) }) : `<div class="panel"><div class="empty"><b>No team members yet</b>Add the people you assign work to.</div></div>`}`;
   const after = () => {
     wireFilters();
     $('[data-new]')?.addEventListener('click', () => openRecord('team', {}));
+    $('[data-hidec]')?.addEventListener('click', () => { S.ui.hideContacts = !S.ui.hideContacts; saveUI(); render(); });
     $$('[data-task]').forEach(b => b.onclick = e => { e.stopPropagation(); openRecord('tasks', { assigned_to: b.dataset.task, assigned_by: me().name }); });
   };
   return { title: 'Team', sub: `${fmtN(rows.length)} people`, html, after };
@@ -2547,7 +2587,7 @@ function viewMore() {
   const items = [['orders', '1 · Orders', 'Order register and delivery dates'], ['rmplan', '2 · RM plan', 'Child parts, sizes, RM weight and cost'], ['purchase', '3 · Purchase & GRN', 'Purchase orders and material receipts'], ['process', '4 · Process plan', 'Process steps, owners, targets, cost'], ['accounts', '5 · Billing & payments', 'Receivables and payables'], ['materials', 'RM master', 'Grades, rates, stock'], ['suppliers', 'Suppliers', 'Shops, contacts, WhatsApp'], ['customers', 'Customers', 'Contacts and credit days'], ['team', 'Team', 'People and notification details'], ['settings', 'Settings', 'Company, lists, alerts, import']];
   const m = me(), st = S.settings;
   const acct = `<section class="panel mecard">${st.logo ? `<img src="${esc(st.logo)}" alt="">` : `<span class="mark">${esc(initials(st.company_name || st.app_title))}</span>`}<div style="flex:1;min-width:0"><b style="display:block">${esc(st.company_name || st.app_title)}</b><small class="muted">${esc(m.name)} · ${esc({ admin: 'Admin', editor: 'Editor', member: 'Member', viewer: 'Viewer' }[myRole()] || 'No access')}</small></div><button class="btn sm" data-theme2 aria-label="Switch light or dark">${ICON.moon}</button>${S.mode === 'cloud' ? `<button class="btn sm danger" data-signout2>Sign out</button>` : ''}</section>`;
-  return { title: 'More', after: () => { $('[data-signout2]')?.addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); }); $('[data-theme2]')?.addEventListener('click', () => { const nx = (document.documentElement.dataset.theme || 'light') === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = nx; S.ui.theme3 = nx; saveUI(); render(); }); }, html: acct + items.map(([k, a, b]) => `<a class="choice" href="#/${k}" style="display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit"><span style="width:24px;color:var(--steel)">${ICON[{ rmplan: 'rm', purchase: 'po', process: 'process', accounts: 'money' }[k] || k]}</span><span><b>${a}</b><span>${b}</span></span></a>`).join('') };
+  return { title: 'More', after: () => { $('[data-pushon]')?.addEventListener('click', enablePush);  $('[data-signout2]')?.addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); }); $('[data-theme2]')?.addEventListener('click', () => { const nx = (document.documentElement.dataset.theme || 'light') === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = nx; S.ui.theme3 = nx; saveUI(); render(); }); }, html: acct + pushPanel() + items.map(([k, a, b]) => `<a class="choice" href="#/${k}" style="display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit"><span style="width:24px;color:var(--steel)">${ICON[{ rmplan: 'rm', purchase: 'po', process: 'process', accounts: 'money' }[k] || k]}</span><span><b>${a}</b><span>${b}</span></span></a>`).join('') };
 }
 
 /* =====================================================================
@@ -3400,6 +3440,9 @@ create table if not exists operations (id uuid primary key default gen_random_uu
 create table if not exists tasks (id uuid primary key default gen_random_uuid(), title text not null, details text, assigned_to uuid, assigned_by text, due_date date, priority text default 'Normal', status text default 'Open', link_table text, link_id uuid, drawing_no text, completed_at timestamptz, created_by text, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists notifications (id uuid primary key default gen_random_uuid(), recipient_email text, recipient_team uuid, title text, body text, link text, is_read boolean default false, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists activity (id uuid primary key default gen_random_uuid(), actor text, action text, entity text, entity_id uuid, summary text, created_at timestamptz default now(), updated_at timestamptz default now());
+alter table team add column if not exists username text;
+create unique index if not exists team_username_uq on team (lower(username)) where username is not null;
+create table if not exists push_subscriptions (id uuid primary key default gen_random_uuid(), user_email text not null, endpoint text not null unique, p256dh text, auth text, created_at timestamptz default now());
 create index if not exists parts_order on parts (order_id);
 create index if not exists parts_drawing on parts (drawing_no);
 create index if not exists ops_part on operations (part_id);
@@ -3421,9 +3464,18 @@ end $$;
 
 -- role of the signed-in person: admin | editor | member | viewer
 create or replace function app_role() returns text language sql stable security definer set search_path = public as
-$$ select coalesce((select role from profiles where id = auth.uid()), 'none') $$;
+$$ select case
+     when r.role is null then 'none'
+     when r.role = 'admin' then 'admin'
+     when lower(coalesce(auth.jwt()->>'email','')) like '%@users.vahan.invalid'
+          then case when coalesce((select value from app_settings where key = 'login_username'), 'true'::jsonb) = 'true'::jsonb then r.role else 'none' end
+     else case when coalesce((select value from app_settings where key = 'login_email'), 'true'::jsonb) = 'false'::jsonb then 'none' else r.role end
+   end
+   from (select (select role from profiles where id = auth.uid()) as role) r $$;
+-- admin-created username accounts sign in as <username>@users.vahan.invalid (no real mailbox)
 create or replace function my_team_id() returns uuid language sql stable security definer set search_path = public as
-$$ select id from team where lower(email) = lower(auth.jwt()->>'email') limit 1 $$;
+$$ select id from team where lower(email) = lower(auth.jwt()->>'email')
+      or (username is not null and lower(username) || '@users.vahan.invalid' = lower(auth.jwt()->>'email')) limit 1 $$;
 
 -- first person to sign up becomes admin; everyone after waits with no access ('none') until an admin gives them a role
 create or replace function handle_new_user() returns trigger language plpgsql security definer set search_path = public as $$
@@ -3449,7 +3501,7 @@ do $$ declare t text; begin
     execute format('drop policy if exists "write" on %I', t);
     execute format('create policy "read" on %I for select to authenticated using (app_role() <> ''none'')', t);
   end loop;
-  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations','tasks'] loop
+  foreach t in array array['team','masters','suppliers','customers','materials','orders','parts','purchase_orders','grns','operations'] loop
     execute format('create policy "write" on %I for all to authenticated using (app_role() in (''admin'',''editor'')) with check (app_role() in (''admin'',''editor''))', t);
   end loop;
   -- CallMeBot keys: admins and editors only (replaces the general read policy)
@@ -3470,13 +3522,34 @@ do $$ declare t text; begin
   execute 'create policy "write" on app_settings for all to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
   execute 'create policy "write" on profiles for update to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
 end $$;
--- members may update the tasks and process steps assigned to them
+-- TASKS ARE PRIVATE: only the person a task is assigned to, the person who assigned it, and admins can see or change it
+drop policy if exists "read" on tasks;
+drop policy if exists "write" on tasks;
 drop policy if exists "member tasks" on tasks;
-create policy "member tasks" on tasks for update to authenticated using (assigned_to = my_team_id()) with check (assigned_to = my_team_id());
+drop policy if exists "tasks admin" on tasks;
+drop policy if exists "tasks read" on tasks;
+drop policy if exists "tasks insert" on tasks;
+drop policy if exists "tasks update" on tasks;
+drop policy if exists "tasks delete" on tasks;
+create policy "tasks admin" on tasks for all to authenticated using (app_role() = 'admin') with check (app_role() = 'admin');
+create policy "tasks read" on tasks for select to authenticated using (app_role() <> 'none' and (assigned_to = my_team_id() or lower(created_by) = lower(auth.jwt()->>'email')));
+create policy "tasks insert" on tasks for insert to authenticated with check (app_role() in ('editor') and lower(created_by) = lower(auth.jwt()->>'email'));
+create policy "tasks update" on tasks for update to authenticated using (app_role() in ('editor','member') and (assigned_to = my_team_id() or lower(created_by) = lower(auth.jwt()->>'email'))) with check (app_role() in ('editor','member') and (assigned_to = my_team_id() or lower(created_by) = lower(auth.jwt()->>'email')));
+create policy "tasks delete" on tasks for delete to authenticated using (app_role() = 'editor' and lower(created_by) = lower(auth.jwt()->>'email'));
+-- older tasks: remember who assigned them (matched by name), and clear task titles from the shared activity log
+update tasks set created_by = coalesce((select lower(email) from team where lower(name) = lower(tasks.assigned_by) and coalesce(email,'') <> '' limit 1),
+                                       (select lower(username) || '@users.vahan.invalid' from team where lower(name) = lower(tasks.assigned_by) and username is not null limit 1))
+  where created_by is null and assigned_by is not null;
+delete from activity where entity = 'tasks';
+
+-- phone (push) notification subscriptions: each person manages only their own devices
+alter table push_subscriptions enable row level security;
+drop policy if exists "own subs" on push_subscriptions;
+create policy "own subs" on push_subscriptions for all to authenticated using (lower(user_email) = lower(auth.jwt()->>'email')) with check (lower(user_email) = lower(auth.jwt()->>'email'));
 drop policy if exists "member ops" on operations;
 create policy "member ops" on operations for update to authenticated using (owner_member = my_team_id() or follow_up = my_team_id()) with check (owner_member = my_team_id() or follow_up = my_team_id());
 drop policy if exists "brand" on app_settings;
-create policy "brand" on app_settings for select to anon using (key in ('company_name','logo','app_title'));
+create policy "brand" on app_settings for select to anon, authenticated using (key in ('company_name','logo','app_title','login_email','login_username'));
 
 -- live updates for everyone
 do $$ declare t text; begin
@@ -3485,6 +3558,35 @@ do $$ declare t text; begin
   end loop;
 end $$;
 `;
+
+/* ================= phone (push) notifications ================= */
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const b64ToU8 = str => { const pad = '='.repeat((4 - str.length % 4) % 4), raw = atob((str + pad).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...raw].map(c => c.charCodeAt(0))); };
+async function enablePush() {
+  if (!pushSupported()) return toast('This browser can’t show phone notifications. On iPhone: open the app in Safari → Share → Add to Home Screen, then open it from the Home Screen icon and try again.', [], 12000, true);
+  if (!S.settings.vapid_public) return toast('Phone notifications aren’t set up yet. Ask your admin (Settings → Notifications → Phone notifications).', [], 8000, true);
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return toast('Notifications are blocked for this app. Allow them in your phone’s settings, then try again.', [], 9000, true);
+    const reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(S.settings.vapid_public) });
+    const j = sub.toJSON();
+    const { error } = await sb.from('push_subscriptions').upsert({ user_email: norm(S.profile.email), endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: 'endpoint' });
+    if (error) throw error;
+    lsSet('cpt_push', 1); toast('Phone notifications are on for this device.'); render();
+  } catch (e) { fail(e, 'Couldn’t turn on phone notifications'); }
+}
+function pushPanel() {
+  if (S.mode !== 'cloud' || !S.settings.vapid_public || S.settings.notif_all === false || S.settings.notif_push === false) return '';
+  const on = pushSupported() && Notification.permission === 'granted' && lsGet('cpt_push', 0);
+  return `<section class="panel" style="padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>Phone notifications</b><small class="muted" style="display:block">${on ? 'On for this device. You’ll be alerted when a task is given to you or updated.' : 'Get an alert on this phone when a task is given to you or updated.'}</small></div>${on ? '<span class="chip green">On</span>' : '<button class="btn pri sm" data-pushon>Turn on</button>'}</section>`;
+}
+function offerPush() {
+  if (S.mode !== 'cloud' || !pushSupported() || !S.settings.vapid_public || S.settings.notif_all === false || S.settings.notif_push === false) return;
+  if (Notification.permission !== 'default' || S.ui.pushAsked) return;
+  S.ui.pushAsked = 1; saveUI();
+  toast('Get an alert on this phone when a task is given to you or updated?', [{ label: 'Turn on', onClick: enablePush }], 14000);
+}
 
 /* ================= settings view ================= */
 function viewSettings() {
@@ -3581,7 +3683,17 @@ const SETTINGS_TABS = {
     const e = S.settings.emailjs || {};
     const auto = teamBy().filter(t => t.wa_apikey).length;
     return {
-      html: `<p class="lede">Every assignment always appears in the app’s bell. On top of that, messages go out by email and WhatsApp — both free.</p>
+      html: `<p class="lede">Every assignment appears in the app’s bell. On top of that, messages can go out by email and WhatsApp — both free. Tasks (given, updated, done) are app and phone notifications only.</p>
+      <section class="panel"><header><h3>Master switches</h3>${S.settings.notif_all === false ? '<span class="chip red">All off</span>' : '<span class="chip green">On</span>'}</header><div class="body" style="display:grid;gap:12px">
+        <label class="switch"><input type="checkbox" data-set="notif_all" ${S.settings.notif_all !== false ? 'checked' : ''}> <b>All notifications</b> — turn off to stop the bell, phone alerts, email and WhatsApp for everyone</label>
+        <label class="switch"><input type="checkbox" data-set="notif_email" ${S.settings.notif_email !== false ? 'checked' : ''}> Email</label>
+        <label class="switch"><input type="checkbox" data-set="notif_whatsapp" ${S.settings.notif_whatsapp !== false ? 'checked' : ''}> WhatsApp (including the one-tap buttons)</label>
+        <label class="switch"><input type="checkbox" data-set="notif_push" ${S.settings.notif_push !== false ? 'checked' : ''}> Phone notifications (app alerts)</label>
+        <p class="muted" style="font-size:13px;margin:0">Nothing is deleted when a switch is off — messages are simply not sent. Only admins can change these.</p></div></section>
+      <section class="panel" style="margin-top:16px"><header><h3>Phone notifications</h3>${S.settings.vapid_public ? '<span class="chip green">Ready</span>' : '<span class="chip amber">Setup needed</span>'}</header><div class="body">
+        <p class="muted" style="font-size:14px;margin-top:0">Alerts that pop up on the phone, even when the app is closed, for people who added the app to their Home Screen. One-time setup: deploy the <code>send-push</code> function, then paste its public key here (see the setup notes that came with this update).</p>
+        <div class="fgrid">${sField('vapid_public', 'Public key (VAPID)', S.settings.vapid_public)}</div>
+        <button class="btn" id="pushon" style="margin-top:12px">Turn on for this device</button></div></section>
       <section class="panel"><header><h3>Email</h3>${emailReady() ? '<span class="chip green">Automatic</span>' : '<span class="chip amber">One tap</span>'}</header><div class="body">
         <p class="muted" style="font-size:14px;margin-top:0">Without setup, the app offers a “Send email” button that opens your mail app. For fully automatic email, connect a free EmailJS account (200 emails a month):</p>
         <ol class="steps"><li>Sign up at <a href="https://www.emailjs.com" target="_blank" rel="noopener">emailjs.com</a> and add an email service (Gmail works). Copy its <b>Service ID</b>.</li>
@@ -3595,6 +3707,8 @@ const SETTINGS_TABS = {
         <label class="switch"><input type="checkbox" data-set="whatsapp_auto" ${S.settings.whatsapp_auto !== false ? 'checked' : ''}> Use CallMeBot keys when a person has one</label></div></section>`,
       after() {
         wireSettingInputs();
+        $('#pushon')?.addEventListener('click', enablePush);
+        $$('[data-set^="notif_"]').forEach(el => el.addEventListener('change', () => setTimeout(render, 300)));
         $('#te')?.addEventListener('click', async () => { const to = me().email || prompt('Send the test to which email?'); if (!to) return; try { await sendEmail(to, me().name, 'Test from ' + (S.settings.app_title || 'Parts tracker'), 'Email notifications are working.', 'dashboard'); toast('Test email sent to ' + to); } catch (e) { fail(e, 'Email failed'); } });
       }
     };
@@ -3604,8 +3718,52 @@ const SETTINGS_TABS = {
       html: `<p class="lede">Anyone with the app link can create an account. ${(S.settings.default_role || 'none') === 'none' ? 'New accounts see nothing (<b>none</b>) until you give them a role here.' : `New accounts currently start as <b>${esc(S.settings.default_role)}</b> and can see your data straight away — change this in Cloud connection → “New sign-ups start as”.`} For extra safety, turn off <b>Allow new users to sign up</b> in Supabase → Authentication → Sign In / Providers and invite people from there.</p>
       <section class="panel"><div class="body"><dl class="kv"><dt>None</dt><dd>Waiting for approval — sees no data</dd><dt>Admin</dt><dd>Everything, including settings, lists and roles</dd><dt>Editor</dt><dd>Add and change parts, jobs, suppliers and team; assign tasks</dd><dt>Member</dt><dd>Sees everything; updates the tasks assigned to them</dd><dt>Viewer</dt><dd>Read-only — ideal for management</dd></dl>
       <div class="row" style="margin-top:14px"><button class="btn" id="cp">Copy invite link</button><a class="btn wa" target="_blank" rel="noopener" href="${esc(waLink('', `Please sign up on our parts tracker: ${appLink('')}`))}">${ICON.wa}Share link on WhatsApp</a></div></div></section>
+      <section class="panel" style="margin-top:16px"><header><h3>Sign-in methods</h3></header><div class="body" style="display:grid;gap:12px">
+        <label class="switch"><input type="checkbox" data-set="login_email" ${S.settings.login_email !== false ? 'checked' : ''}> Allow sign-in with email (and new email sign-ups)</label>
+        <label class="switch"><input type="checkbox" data-set="login_username" ${S.settings.login_username !== false ? 'checked' : ''}> Allow sign-in with a username and password created by an admin</label>
+        <p class="muted" style="font-size:13px;margin:0">Admins can always sign in with their email (use “Admin sign-in” on the login screen), so you can’t lock yourself out. Switching a method off blocks everyone else who uses it, straight away.</p></div></section>
+      <section class="panel" style="margin-top:16px"><header><h3>Create a username login</h3></header><div class="body">
+        <p class="muted" style="font-size:14px;margin-top:0">For people without an email. Give them the username and password; they type them on the login screen.</p>
+        <div class="fgrid"><div class="field"><label for="nu_name">Full name</label><input id="nu_name" autocomplete="off"></div>
+        <div class="field"><label for="nu_user">Username</label><input id="nu_user" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. gopinath"><div class="hint">Letters and numbers, at least 3.</div></div>
+        <div class="field"><label for="nu_pass">Password</label><input id="nu_pass" type="text" autocomplete="off" placeholder="at least 6 characters"></div>
+        <div class="field"><label for="nu_role">Access</label><select id="nu_role" class="sel"><option value="member">Member — updates their own work</option><option value="editor">Editor — can plan and assign</option><option value="viewer">Viewer — read only</option></select></div>
+        <div class="field full"><label for="nu_team">Link to team member</label><select id="nu_team" class="sel"><option value="">— None —</option>${(S.data.team || []).filter(t => !t.username).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select><div class="hint">Linking lets tasks and process steps given to that person reach this login.</div></div></div>
+        <p id="nu_msg" class="muted" style="min-height:1.2em"></p>
+        <button class="btn pri" id="nu_go">Create login</button></div></section>
+      <div id="unList" style="margin-top:16px"></div>
       <div style="margin-top:16px" id="profList"><div class="empty">Loading people…</div></div>`,
       async after() {
+        wireSettingInputs();
+        $$('[data-set^="login_"]').forEach(el => el.addEventListener('change', () => setTimeout(render, 300)));
+        const callAdmin = async body => {
+          const { data, error } = await sb.functions.invoke('admin-users', { body });
+          if (error) { let m = error.message; try { const j = await error.context?.json?.(); if (j?.error) m = j.error; } catch (e) { } if (/not found|failed to send|404/i.test(m)) m = 'The admin-users function isn’t deployed yet (see the setup notes).'; throw new Error(m); }
+          if (data?.error) throw new Error(data.error);
+          return data;
+        };
+        const drawUsers = async () => {
+          try {
+            const { data } = await sb.from('profiles').select('id,email,full_name,role').like('email', '%@' + USER_DOMAIN).order('created_at');
+            $('#unList').innerHTML = (data || []).length ? `<div class="panel tablewrap"><table class="dt"><thead><tr><th>Username logins</th><th>Access</th><th></th></tr></thead><tbody>${data.map(u => `<tr><td class="first" data-label="Username"><span class="t">${esc(u.full_name || u.email.split('@')[0])}</span><small>${esc(u.email.split('@')[0])}</small></td><td data-label="Access">${esc(u.role)}</td><td class="acts"><button class="btn sm" data-pw="${esc(u.email.split('@')[0])}">New password</button> <button class="btn sm danger" data-rm="${esc(u.email.split('@')[0])}">Remove</button></td></tr>`).join('')}</tbody></table></div>` : '';
+            $$('[data-pw]').forEach(b => b.onclick = async () => { const pw = prompt('New password for ' + b.dataset.pw + ' (at least 6 characters)'); if (!pw) return; if (pw.length < 6) return toast('At least 6 characters.', [], 3500, true); try { await callAdmin({ action: 'set_password', username: b.dataset.pw, password: pw }); toast('Password changed.'); } catch (e) { fail(e); } });
+            $$('[data-rm]').forEach(b => b.onclick = async () => { if (!(await confirmBox('Remove this login?', b.dataset.rm + ' will no longer be able to sign in. Their tasks and work stay.', 'Remove'))) return; try { await callAdmin({ action: 'delete', username: b.dataset.rm }); const t = (S.data.team || []).find(x => norm(x.username) === norm(b.dataset.rm)); if (t) await DB.update('team', t.id, { username: null }); toast('Login removed.'); render(); } catch (e) { fail(e); } });
+          } catch (e) { console.warn(e); }
+        };
+        drawUsers();
+        $('#nu_go').onclick = async () => {
+          const name = $('#nu_name').value.trim(), user = $('#nu_user').value.trim().toLowerCase(), pw = $('#nu_pass').value, msg = $('#nu_msg');
+          msg.style.color = 'var(--red)';
+          if (!/^[a-z0-9._-]{3,30}$/.test(user)) return msg.textContent = 'Username: 3–30 letters, numbers, dot, dash or underscore. No spaces or @.';
+          if (pw.length < 6) return msg.textContent = 'Password needs at least 6 characters.';
+          if ((S.data.team || []).some(t => norm(t.username) === user)) return msg.textContent = 'That username is already taken.';
+          msg.style.color = ''; msg.textContent = 'Creating…'; $('#nu_go').disabled = true;
+          try {
+            await callAdmin({ action: 'create', username: user, password: pw, full_name: name || user, role: $('#nu_role').value });
+            const tid = $('#nu_team').value; if (tid) await DB.update('team', tid, { username: user });
+            toast(`Login created. Username: ${user}`); render();
+          } catch (e) { msg.style.color = 'var(--red)'; msg.textContent = e.message; $('#nu_go').disabled = false; }
+        };
         $('#cp').onclick = () => { navigator.clipboard?.writeText(appLink('')); toast('Invite link copied.'); };
         try {
           const { data: d0, error } = await sb.from('profiles').select('*').order('created_at'); if (error) throw error;
@@ -3783,24 +3941,36 @@ async function showLogin(cfg) {
   let brand = {};
   try { const { data } = await sb.from('app_settings').select('key,value'); (data || []).forEach(r => brand[r.key] = r.value); } catch (e) { }
   if (brand.logo) { S.settings.logo = brand.logo; applySettings(); }
-  let signup = false;
+  const emailOn = brand.login_email !== false, userOn = brand.login_username !== false;
+  let signup = false, adminMode = false;
+  const emailOk = () => emailOn || adminMode;
   const draw = () => {
+    const idLabel = emailOk() && userOn ? 'Email or username' : emailOk() ? 'Email' : 'Username';
+    const sub = signup ? 'Use your work email. An admin will give you access.' : !emailOk() ? 'Use the username and password your admin gave you.' : 'Welcome back.';
     $('#app').innerHTML = `<div class="gate">${gateArt(brand.company_name ? `${brand.company_name}` : 'Child parts tracker', brand.app_title ? brand.app_title + ' — sign in to see live status, alerts and your tasks.' : 'Sign in to see live status, alerts and your tasks.')}
-    <div class="form">${brand.logo ? `<img src="${esc(brand.logo)}" alt="" style="width:64px;height:64px;object-fit:contain;margin-bottom:14px">` : ''}<h2>${signup ? 'Create your account' : 'Sign in'}</h2><p class="muted">${signup ? 'Use your work email. An admin will give you access.' : 'Welcome back.'}</p>
+    <div class="form">${brand.logo ? `<img src="${esc(brand.logo)}" alt="" style="width:64px;height:64px;object-fit:contain;margin-bottom:14px">` : ''}<h2>${signup ? 'Create your account' : 'Sign in'}</h2><p class="muted">${sub}</p>
       <form id="lf">${signup ? `<div class="field"><label for="ln">Your name</label><input id="ln" required autocomplete="name"></div>` : ''}
-      <div class="field" style="margin-top:12px"><label for="le">Email</label><input id="le" type="email" required autocomplete="email"></div>
+      <div class="field" style="margin-top:12px"><label for="le">${idLabel}</label><input id="le" type="${signup ? 'email' : 'text'}" required autocomplete="username" autocapitalize="none" spellcheck="false"></div>
       <div class="field" style="margin-top:12px"><label for="lp">Password</label><input id="lp" type="password" required minlength="6" autocomplete="${signup ? 'new-password' : 'current-password'}"></div>
       <p id="lerr" class="muted" style="min-height:1.2em"></p>
       <button class="btn pri" style="width:100%">${signup ? 'Create account' : 'Sign in'}</button></form>
-      <div class="row" style="margin-top:14px;justify-content:space-between"><button class="btn ghost" id="lt">${signup ? 'I already have an account' : 'Create an account'}</button>${signup ? '' : '<button class="btn ghost" id="lr">Forgot password</button>'}</div>
+      <div class="row" style="margin-top:14px;justify-content:space-between">${emailOk() ? `<button class="btn ghost" id="lt">${signup ? 'I already have an account' : 'Create an account'}</button>` : '<span></span>'}${signup || !emailOk() ? '' : '<button class="btn ghost" id="lr">Forgot password</button>'}</div>
+      ${!emailOn && !adminMode ? '<button class="btn ghost sm" id="la" style="margin-top:14px;align-self:flex-start">Admin sign-in (email)</button>' : ''}
       ${cfg && !window.APP_CONFIG ? '<button class="btn ghost sm" id="ldc" style="margin-top:20px;align-self:flex-start">Use a different database</button>' : ''}</div></div>`;
-    $('#lt').onclick = () => { signup = !signup; draw(); };
+    $('#lt')?.addEventListener('click', () => { signup = !signup; draw(); });
+    $('#la')?.addEventListener('click', () => { adminMode = true; draw(); });
     $('#ldc')?.addEventListener('click', () => { localStorage.removeItem('cpt_cfg'); location.reload(); });
-    $('#lr')?.addEventListener('click', async () => { const em = $('#le').value.trim(); if (!em) return $('#lerr').textContent = 'Enter your email first.'; const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.href.split('#')[0] }); $('#lerr').textContent = error ? error.message : 'Check your email for a reset link.'; });
+    $('#lr')?.addEventListener('click', async () => { const em = $('#le').value.trim(); if (!em.includes('@')) return $('#lerr').textContent = 'Enter your email first. (Username logins can’t reset by email — ask your admin.)'; const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.href.split('#')[0] }); $('#lerr').textContent = error ? error.message : 'Check your email for a reset link.'; });
     $('#lf').onsubmit = async e => {
-      e.preventDefault(); const em = $('#le').value.trim(), pw = $('#lp').value; const out = $('#lerr'); out.style.color = ''; out.textContent = 'Please wait…';
+      e.preventDefault(); const raw = $('#le').value.trim(), pw = $('#lp').value; const out = $('#lerr'); out.style.color = '';
+      const bad = m => { out.style.color = 'var(--red)'; out.textContent = m; };
+      let em = raw;
+      if (signup) { if (!raw.includes('@')) return bad('Enter a valid email address.'); }
+      else if (raw.includes('@')) { if (!emailOk()) return bad('Email sign-in is switched off. Use your username, or “Admin sign-in”.'); }
+      else { if (!userOn) return bad('Username sign-in is switched off. Please use your email.'); em = userEmail(raw); }
+      out.textContent = 'Please wait…';
       const r = signup ? await sb.auth.signUp({ email: em, password: pw, options: { data: { full_name: $('#ln').value.trim() }, emailRedirectTo: location.href.split('#')[0] } }) : await sb.auth.signInWithPassword({ email: em, password: pw });
-      if (r.error) { out.style.color = 'var(--red)'; out.textContent = r.error.message; return; }
+      if (r.error) { return bad(/invalid login/i.test(r.error.message) ? 'Wrong username/email or password.' : r.error.message); }
       if (signup && !r.data.session) { out.textContent = 'Account created. Check your email to confirm, then sign in.'; signup = false; return; }
       location.reload();
     };
@@ -3820,6 +3990,8 @@ async function start(cfg) {
   }
   parseHash(); render();
   if (S.mode === 'cloud') Cloud.subscribe();
+  if (S.mode === 'cloud' && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
+  setTimeout(offerPush, 3500);
   if (S.mode === 'cloud' && isAdmin()) (async () => { try { const { count } = await sb.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'none'); if (count) toast(`${count} ${count === 1 ? 'person is' : 'people are'} waiting for access.`, [{ label: 'Review', route: 'settings?tab=access' }], 10000); } catch (e) { } })();
   if (S.mode === 'cloud' && myRole() === 'viewer' && !S.ui.viewerNote) { toast('You have view-only access. Ask an admin to change your role if you need to make changes.', [], 9000); S.ui.viewerNote = 1; saveUI(); }
   setTimeout(maybeAutoDigest, 4000);
@@ -3844,6 +4016,15 @@ async function boot() {
   S.session = session;
   const { data: prof } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
   S.profile = prof || { email: session.user.email, role: 'none' };
+  if (S.profile.role !== 'admin') {
+    let f = {};
+    try { const { data: fl } = await sb.from('app_settings').select('key,value').in('key', ['login_email', 'login_username']); (fl || []).forEach(r => f[r.key] = r.value); } catch (e) { }
+    const viaUser = isUserAcct(session.user.email);
+    if ((viaUser && f.login_username === false) || (!viaUser && f.login_email === false)) {
+      $('#app').innerHTML = `<div class="gate">${gateArt('Sign-in switched off', viaUser ? 'Username sign-in has been switched off by your admin.' : 'Email sign-in has been switched off by your admin.')}<div class="form"><h2>Can’t sign in this way</h2><p class="muted">${viaUser ? 'Ask your admin to switch username sign-in back on.' : 'Use the username and password your admin gave you, or ask your admin to switch email sign-in back on.'}</p><button class="btn pri" id="so">Sign out</button></div></div>`;
+      $('#so').onclick = async () => { await sb.auth.signOut(); location.reload(); }; return;
+    }
+  }
   if (S.profile.role === 'none') { $('#app').innerHTML = `<div class="gate">${gateArt('Waiting for access', 'Your account is created. An admin needs to approve it before you can see any data.')}<div class="form"><h2>Waiting for approval</h2><p class="muted">Signed in as <b>${esc(session.user.email)}</b>. Ask your admin to give you a role in Settings → Users &amp; access, then reload this page.</p><button class="btn pri" style="margin-bottom:10px" onclick="location.reload()">Reload</button><button class="btn" id="so">Sign out</button></div></div>`; $('#so').onclick = async () => { await sb.auth.signOut(); location.reload(); }; return; }
   await start(cfg);
 }
