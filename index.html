@@ -98,7 +98,8 @@ a{color:var(--steel)}
   .top h1{font-size:18px}
   .gsearch{display:none}
   .gsearch.open{display:block;position:fixed;left:12px;right:12px;top:calc(62px + env(safe-area-inset-top,0px));width:auto;z-index:50}
-  .view{padding:16px 14px 110px}
+  .view{padding:16px 14px 16px}
+  .main .powered{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
   .mbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
   .mbar a{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);text-decoration:none;padding:4px 0;position:relative}
   .mbar a.on{color:var(--steel);font-weight:600}
@@ -271,7 +272,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:14px}
 .nitem small{color:var(--muted);display:block}
 
 /* ---------- welcome / login ---------- */
-.gate{min-height:100%;display:grid;grid-template-columns:1.1fr 1fr}
+.gate{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:1.1fr 1fr}
 .gate .art{background:var(--ink);color:#fff;padding:56px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
 .gate .art h1{font-size:clamp(30px,4vw,48px);line-height:1.08;margin:0;font-weight:700;letter-spacing:-.02em;max-width:15ch}
 .gate .art p{color:#A9B6C3;max-width:44ch}
@@ -279,6 +280,11 @@ table.dt{width:100%;border-collapse:collapse;font-size:14px}
 .gate .art .stack a{width:64px;height:16px}
 .gate .form{padding:56px;display:flex;flex-direction:column;justify-content:center;max-width:560px;width:100%;margin:0 auto}
 .gate .form h2{margin:0 0 6px;font-size:24px}
+.powered{margin-top:auto;padding:16px;text-align:center;font-size:12.5px;color:var(--muted)}
+.powered a{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.powered a:hover{color:var(--steel)}
+.gate .powered{grid-column:1/-1;margin:0;border-top:1px solid var(--line);background:var(--paper)}
+@media (min-width:861px){.gate{grid-template-rows:1fr auto}}
 .choice{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:var(--r-lg);padding:18px;margin-top:12px;cursor:pointer}
 .choice:hover{border-color:var(--steel)}
 .choice b{display:block;font-size:16px}
@@ -1515,6 +1521,7 @@ function brandHtml() {
   const s = S.settings;
   return `<div class="brand">${s.logo ? `<img src="${esc(s.logo)}" alt="">` : `<div class="mark">${esc(initials(s.company_name || s.app_title))}</div>`}<div><b>${esc(s.company_name || s.app_title)}</b><small>${esc(s.company_name ? s.app_title : S.mode === 'local' ? 'Trial on this device' : 'Shared workspace')}</small></div></div>`;
 }
+const POWERED = '<footer class="powered">Powered By - <a href="https://www.kmr-groups.com" target="_blank" rel="noopener">KMR Group of Companies</a></footer>';
 function shellHtml() {
   const al = computeAlerts().filter(a => a.lvl !== 'info').length;
   const myId = me().team?.id; const myOpen = myId ? (S.data.tasks || []).filter(t => t.status !== 'Done' && t.assigned_to === myId).length + (S.data.operations || []).filter(o => o.status !== 'Done' && (o.owner_member === myId || o.follow_up === myId)).length : 0;
@@ -1534,6 +1541,7 @@ function shellHtml() {
       <button class="iconbtn only-desk" data-theme aria-label="Switch light or dark">${ICON.moon}</button>
     </header>
     <main class="view" id="view"></main>
+    ${POWERED}
   </div>
   <nav class="mbar">${MOBILE_NAV.map(k => k === 'more' ? `<a href="#/more" class="${!MOBILE_NAV.includes(ROUTE_NAV[S.route] || S.route) ? 'on' : ''}">${ICON.more}<span>More</span></a>` : `<a href="#/${k}" class="${S.route === k ? 'on' : ''}">${ICON[k]}<span>${NAV.find(n => n[0] === k)[1]}</span>${badge(k)}</a>`).join('')}</nav>
 </div>`;
@@ -3891,6 +3899,7 @@ const SETTINGS_TABS = {
 
 const VIEWS = { dashboard: viewDashboard, alerts: viewAlerts, mywork: viewMyWork, tasks: () => { S.params.tab = 'tasks'; return viewMyWork(); }, tracker: viewTracker, orders: viewOrders, order: viewOrder, rmplan: viewRMPlan, parts: viewRMPlan, purchase: viewPurchase, process: viewProcess, jobs: viewProcess, grinding: viewProcess, accounts: viewAccounts, materials: viewMaterials, suppliers: viewSuppliers, customers: viewCustomers, team: viewTeam, settings: viewSettings, more: viewMore };
 
+new MutationObserver(() => { const g = document.querySelector('#app > .gate'); if (g && !g.querySelector('.powered')) g.insertAdjacentHTML('beforeend', POWERED); }).observe(document.getElementById('app'), { childList: true });
 function gateArt(title, text) {
   return `<div class="art"><div><div class="stack"><a class="lit red"></a><a class="lit amber"></a><a class="lit green"></a></div><h1>${esc(title)}</h1><p>${esc(text)}</p></div><p style="font-size:13px">Works on phones, tablets and computers. Free to run.</p></div>`;
 }
