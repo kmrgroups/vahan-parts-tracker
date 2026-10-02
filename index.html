@@ -3960,13 +3960,19 @@ async function showLogin(cfg) {
     <div class="form">${brand.logo ? `<img src="${esc(brand.logo)}" alt="" style="width:64px;height:64px;object-fit:contain;margin-bottom:14px">` : ''}<h2>${signup ? 'Create your account' : 'Sign in'}</h2><p class="muted">${sub}</p>
       <form id="lf">${signup ? `<div class="field"><label for="ln">Your name</label><input id="ln" required autocomplete="name"></div>` : ''}
       <div class="field" style="margin-top:12px"><label for="le">${idLabel}</label><input id="le" type="${signup ? 'email' : 'text'}" required autocomplete="username" autocapitalize="none" spellcheck="false"></div>
-      <div class="field" style="margin-top:12px"><label for="lp">Password</label><input id="lp" type="password" required minlength="6" autocomplete="${signup ? 'new-password' : 'current-password'}"></div>
+      <div class="field" style="margin-top:12px"><label for="lp">Password</label><div style="position:relative"><input id="lp" type="password" required minlength="6" autocomplete="current-password" style="padding-right:46px"><button type="button" id="lpeye" class="iconbtn" aria-label="Show password" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;background:none">${I('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>')}</button></div></div>
       <p id="lerr" class="muted" style="min-height:1.2em"></p>
       <button class="btn pri" style="width:100%">${signup ? 'Create account' : 'Sign in'}</button></form>
-      <div class="row" style="margin-top:14px;justify-content:space-between">${emailOk() ? `<button class="btn ghost" id="lt">${signup ? 'I already have an account' : 'Create an account'}</button>` : '<span></span>'}${signup || !emailOk() ? '' : '<button class="btn ghost" id="lr">Forgot password</button>'}</div>
+      <div class="row" style="margin-top:14px;justify-content:flex-end">${emailOk() ? '<button type="button" class="btn ghost" id="lr">Forgot password</button>' : ''}</div>
       ${!emailOn && !adminMode ? '<button class="btn ghost sm" id="la" style="margin-top:14px;align-self:flex-start">Admin sign-in (email)</button>' : ''}
       ${cfg && !window.APP_CONFIG ? '<button class="btn ghost sm" id="ldc" style="margin-top:20px;align-self:flex-start">Use a different database</button>' : ''}</div></div>`;
-    $('#lt')?.addEventListener('click', () => { signup = !signup; draw(); });
+    $('#lpeye')?.addEventListener('click', e => {
+      const p = $('#lp'), show = p.type === 'password'; p.type = show ? 'text' : 'password';
+      e.currentTarget.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      e.currentTarget.innerHTML = show
+        ? I('<path d="M17.94 17.94A10.9 10.9 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.1 9.1 0 0 1 12 5c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M1 1l22 22"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>')
+        : I('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>');
+    });
     $('#la')?.addEventListener('click', () => { adminMode = true; draw(); });
     $('#ldc')?.addEventListener('click', () => { localStorage.removeItem('cpt_cfg'); location.reload(); });
     $('#lr')?.addEventListener('click', async () => { const em = $('#le').value.trim(); if (!em.includes('@')) return $('#lerr').textContent = 'Enter your email first. (Username logins can’t reset by email — ask your admin.)'; const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.href.split('#')[0] }); $('#lerr').textContent = error ? error.message : 'Check your email for a reset link.'; });
