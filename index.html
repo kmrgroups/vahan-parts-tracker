@@ -14,7 +14,27 @@
 <title>Child Parts Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Narrow:wght@500;600&display=swap" rel="stylesheet">
-<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js"></script>
+<script>
+/* Loads the sign-in/database library. Tries your own copy first (vendor/supabase.js), then several public mirrors, because some phones/networks block one of them. */
+window.supaReady = new Promise(function (resolve) {
+  var V = '2.117.1', urls = ['vendor/supabase.js',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@' + V + '/dist/umd/supabase.js',
+    'https://unpkg.com/@supabase/supabase-js@' + V + '/dist/umd/supabase.js',
+    'https://fastly.jsdelivr.net/npm/@supabase/supabase-js@' + V + '/dist/umd/supabase.js',
+    'https://gcore.jsdelivr.net/npm/@supabase/supabase-js@' + V + '/dist/umd/supabase.js',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js'], i = 0;
+  function next() {
+    if (window.supabase) return resolve(true);
+    if (i >= urls.length) return resolve(false);
+    var done = false, el = document.createElement('script');
+    var go = function () { if (done) return; done = true; clearTimeout(t); window.supabase ? resolve(true) : next(); };
+    var t = setTimeout(go, 9000);
+    el.src = urls[i++]; el.onload = go; el.onerror = go;
+    document.head.appendChild(el);
+  }
+  next();
+});
+</script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -4078,7 +4098,9 @@ async function boot() {
   const cfg = window.APP_CONFIG || lsGet('cpt_cfg', null);
   if (!cfg || !cfg.mode) return showWelcome();
   if (cfg.mode === 'local') return start(cfg);
-  if (!window.supabase) { $('#app').innerHTML = `<div class="gate">${gateArt('You’re offline', 'The shared workspace needs an internet connection.')}<div class="form"><h2>Can’t reach the database</h2><p class="muted">Check your connection and try again.</p><button class="btn pri" onclick="location.reload()">Try again</button></div></div>`; return; }
+  $('#app').innerHTML = '<div class="empty" style="padding:60px 20px">Loading…</div>';
+  await window.supaReady;
+  if (!window.supabase) { $('#app').innerHTML = `<div class="gate">${gateArt('Can’t load the app', 'A required file did not load on this phone.')}<div class="form"><h2>Can’t load sign-in</h2><p class="muted">The sign-in library could not be downloaded. Check the internet connection, turn off any VPN, Private DNS or ad-blocker, then try again. If it keeps happening, tell your admin.</p><button class="btn pri" onclick="location.reload()">Try again</button></div></div>`; return; }
   sb = window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, autoRefreshToken: true } });
   S.cfg = cfg;
   const { data: { session } } = await sb.auth.getSession();
