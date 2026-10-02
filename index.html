@@ -3736,7 +3736,7 @@ const SETTINGS_TABS = {
         <div class="field"><label for="nu_user">Username</label><input id="nu_user" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. gopinath"><div class="hint">Letters and numbers, at least 3.</div></div>
         <div class="field"><label for="nu_pass">Password</label><input id="nu_pass" type="text" autocomplete="off" placeholder="at least 6 characters"></div>
         <div class="field"><label for="nu_role">Access</label><select id="nu_role" class="sel"><option value="member">Member — updates their own work</option><option value="editor">Editor — can plan and assign</option><option value="viewer">Viewer — read only</option></select></div>
-        <div class="field full"><label for="nu_team">Link to team member</label><select id="nu_team" class="sel"><option value="">— None —</option>${(S.data.team || []).filter(t => !t.username).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select><div class="hint">Linking lets tasks and process steps given to that person reach this login.</div></div></div>
+        <div class="field full"><label for="nu_team">Link to team member</label><select id="nu_team" class="sel"><option value="">— None —</option>${(S.data.team || []).slice().sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}">${esc(t.name)}${t.username ? ' (linked to @' + esc(t.username) + ')' : ''}</option>`).join('')}</select><div class="hint">Linking lets tasks and process steps given to that person reach this login.</div></div></div>
         <p id="nu_msg" class="muted" style="min-height:1.2em"></p>
         <button class="btn pri" id="nu_go">Create login</button></div></section>
       <div id="unList" style="margin-top:16px"></div>
@@ -3750,9 +3750,11 @@ const SETTINGS_TABS = {
           if (data?.error) throw new Error(data.error);
           return data;
         };
+        let liveNames = null; // usernames that really have a login account (null until loaded)
         const drawUsers = async () => {
           try {
             const { data } = await sb.from('profiles').select('id,email,full_name,role').like('email', '%@' + USER_DOMAIN).order('created_at');
+            liveNames = (data || []).map(u => norm(u.email.split('@')[0]));
             $('#unList').innerHTML = (data || []).length ? `<div class="panel tablewrap"><table class="dt"><thead><tr><th>Username logins</th><th>Access</th><th></th></tr></thead><tbody>${data.map(u => `<tr><td class="first" data-label="Username"><span class="t">${esc(u.full_name || u.email.split('@')[0])}</span><small>${esc(u.email.split('@')[0])}</small></td><td data-label="Access">${esc(u.role)}</td><td class="acts"><button class="btn sm" data-pw="${esc(u.email.split('@')[0])}">New password</button> <button class="btn sm danger" data-rm="${esc(u.email.split('@')[0])}">Remove</button></td></tr>`).join('')}</tbody></table></div>` : '';
             $$('[data-pw]').forEach(b => b.onclick = async () => { const pw = prompt('New password for ' + b.dataset.pw + ' (at least 6 characters)'); if (!pw) return; if (pw.length < 6) return toast('At least 6 characters.', [], 3500, true); try { await callAdmin({ action: 'set_password', username: b.dataset.pw, password: pw }); toast('Password changed.'); } catch (e) { fail(e); } });
             $$('[data-rm]').forEach(b => b.onclick = async () => { if (!(await confirmBox('Remove this login?', b.dataset.rm + ' will no longer be able to sign in. Their tasks and work stay.', 'Remove'))) return; try { await callAdmin({ action: 'delete', username: b.dataset.rm }); const t = (S.data.team || []).find(x => norm(x.username) === norm(b.dataset.rm)); if (t) await DB.update('team', t.id, { username: null }); toast('Login removed.'); render(); } catch (e) { fail(e); } });
@@ -3764,7 +3766,9 @@ const SETTINGS_TABS = {
           msg.style.color = 'var(--red)';
           if (!/^[a-z0-9._-]{3,30}$/.test(user)) return msg.textContent = 'Username: 3–30 letters, numbers, dot, dash or underscore. No spaces or @.';
           if (pw.length < 6) return msg.textContent = 'Password needs at least 6 characters.';
-          if ((S.data.team || []).some(t => norm(t.username) === user)) return msg.textContent = 'That username is already taken.';
+          if (liveNames && liveNames.includes(user)) return msg.textContent = 'That username already has a login. Use “New password” in the list below, or “Remove” it first.';
+          const tid0 = $('#nu_team').value, tm0 = (S.data.team || []).find(t => t.id === tid0);
+          if (tm0 && tm0.username && norm(tm0.username) !== user && liveNames && liveNames.includes(norm(tm0.username))) return msg.textContent = `${tm0.name} already has the login “${tm0.username}”. Remove that first, or pick a different team member.`;
           msg.style.color = ''; msg.textContent = 'Creating…'; $('#nu_go').disabled = true;
           try {
             await callAdmin({ action: 'create', username: user, password: pw, full_name: name || user, role: $('#nu_role').value });
@@ -3986,7 +3990,7 @@ async function showLogin(cfg) {
       else { if (!userOn) return bad('Username sign-in is switched off. Please use your email.'); em = userEmail(raw); }
       out.textContent = 'Please wait…';
       const r = signup ? await sb.auth.signUp({ email: em, password: pw, options: { data: { full_name: $('#ln').value.trim() }, emailRedirectTo: location.href.split('#')[0] } }) : await sb.auth.signInWithPassword({ email: em, password: pw });
-      if (r.error) { return bad(/invalid login/i.test(r.error.message) ? 'Wrong username/email or password.' : r.error.message); }
+      if (r.error) { return bad(/invalid login/i.test(r.error.message) ? (em === raw ? 'Wrong email or password.' : 'Wrong username or password. If the admin only just created this login, ask them to press “New password” beside it in Settings.') : r.error.message); }
       if (signup && !r.data.session) { out.textContent = 'Account created. Check your email to confirm, then sign in.'; signup = false; return; }
       location.reload();
     };
