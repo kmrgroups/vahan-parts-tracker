@@ -1033,9 +1033,12 @@ async function loadAll() {
 }
 
 /* ================= identity & roles ================= */
-function myRole() {
+function realRole() { // what is stored: admin (= Developer admin) | client_admin | editor | member | viewer | none
   if (S.mode === 'local') return 'admin';
   return S.profile?.role || 'none';
+}
+function myRole() { // a Client admin works as an admin everywhere except the developer-only settings screens
+  const r = realRole(); return r === 'client_admin' ? 'admin' : r;
 }
 const USER_DOMAIN = 'users.vahan.invalid'; // username logins are stored as <username>@users.vahan.invalid (no real mailbox)
 const userEmail = u => norm(u) + '@' + USER_DOMAIN;
@@ -1049,6 +1052,11 @@ function me() {
 }
 const canEdit = () => ['admin', 'editor'].includes(myRole());
 const isAdmin = () => myRole() === 'admin';
+const isDev = () => realRole() === 'admin'; // Developer admin
+const privRole = r => r === 'admin' || r === 'client_admin';
+const roleLabel = r => ({ none: 'none (no access)', admin: 'Developer admin', client_admin: 'Client admin' }[r] || r);
+const roleChoices = cur => { const base = isDev() ? ['none', 'admin', 'client_admin', 'editor', 'member', 'viewer'] : ['none', 'editor', 'member', 'viewer']; return base.includes(cur || 'none') ? base : [...base, cur]; };
+const DEV_TABS = ['company', 'rules', 'notify', 'cloud', 'help']; // settings screens only the Developer admin sees
 
 async function logActivity(action, entity, rec, summary) {
   if (entity === 'tasks') return; // task titles are private — keep them out of the shared activity log
@@ -1530,8 +1538,8 @@ function shellHtml() {
   const m = me();
   return `<div class="shell">
   <aside class="side">${brandHtml()}
-    <nav class="nav">${NAV.map(n => typeof n === 'string' ? `<div class="sep">${esc(n.slice(1))}</div>` : `<a href="#/${n[0]}" class="${(ROUTE_NAV[S.route] || S.route) === n[0] ? 'on' : ''}">${ICON[n[0]]}<span>${n[1]}</span>${badge(n[0])}</a>`).join('')}</nav>
-    <div class="who"><div class="avatar">${esc(initials(m.name))}</div><div style="min-width:0"><div style="color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.name)}</div><small style="color:var(--ink-dim)">${esc({ admin: 'Admin', editor: 'Editor', member: 'Member', viewer: 'Viewer' }[myRole()] || 'No access yet')}</small></div>${S.mode === 'cloud' ? '<button data-signout>Sign out</button>' : ''}</div>
+    <nav class="nav">${NAV.filter(n => typeof n === 'string' || n[0] !== 'settings' || isAdmin()).map(n => typeof n === 'string' ? `<div class="sep">${esc(n.slice(1))}</div>` : `<a href="#/${n[0]}" class="${(ROUTE_NAV[S.route] || S.route) === n[0] ? 'on' : ''}">${ICON[n[0]]}<span>${n[1]}</span>${badge(n[0])}</a>`).join('')}</nav>
+    <div class="who"><div class="avatar">${esc(initials(m.name))}</div><div style="min-width:0"><div style="color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.name)}</div><small style="color:var(--ink-dim)">${esc({ admin: 'Developer admin', client_admin: 'Client admin', editor: 'Editor', member: 'Member', viewer: 'Viewer' }[realRole()] || 'No access yet')}</small></div>${S.mode === 'cloud' ? '<button data-signout>Sign out</button>' : ''}</div>
   </aside>
   <div class="main">
     <header class="top"><a class="mob-brand" href="#/more" aria-label="Menu and account">${S.settings.logo ? `<img src="${esc(S.settings.logo)}" alt="">` : `<span class="mark">${esc(initials(S.settings.company_name || S.settings.app_title))}</span>`}</a><div class="grow"><h1 id="ptitle"></h1><div class="sub" id="psub"></div></div>
@@ -2592,9 +2600,9 @@ function viewTeam() {
   return { title: 'Team', sub: `${fmtN(rows.length)} people`, html, after };
 }
 function viewMore() {
-  const items = [['orders', '1 · Orders', 'Order register and delivery dates'], ['rmplan', '2 · RM plan', 'Child parts, sizes, RM weight and cost'], ['purchase', '3 · Purchase & GRN', 'Purchase orders and material receipts'], ['process', '4 · Process plan', 'Process steps, owners, targets, cost'], ['accounts', '5 · Billing & payments', 'Receivables and payables'], ['materials', 'RM master', 'Grades, rates, stock'], ['suppliers', 'Suppliers', 'Shops, contacts, WhatsApp'], ['customers', 'Customers', 'Contacts and credit days'], ['team', 'Team', 'People and notification details'], ['settings', 'Settings', 'Company, lists, alerts, import']];
+  const items = [['orders', '1 · Orders', 'Order register and delivery dates'], ['rmplan', '2 · RM plan', 'Child parts, sizes, RM weight and cost'], ['purchase', '3 · Purchase & GRN', 'Purchase orders and material receipts'], ['process', '4 · Process plan', 'Process steps, owners, targets, cost'], ['accounts', '5 · Billing & payments', 'Receivables and payables'], ['materials', 'RM master', 'Grades, rates, stock'], ['suppliers', 'Suppliers', 'Shops, contacts, WhatsApp'], ['customers', 'Customers', 'Contacts and credit days'], ['team', 'Team', 'People and notification details'], ['settings', 'Settings', 'Company, lists, alerts, import']].filter(i => i[0] !== 'settings' || isAdmin());
   const m = me(), st = S.settings;
-  const acct = `<section class="panel mecard">${st.logo ? `<img src="${esc(st.logo)}" alt="">` : `<span class="mark">${esc(initials(st.company_name || st.app_title))}</span>`}<div style="flex:1;min-width:0"><b style="display:block">${esc(st.company_name || st.app_title)}</b><small class="muted">${esc(m.name)} · ${esc({ admin: 'Admin', editor: 'Editor', member: 'Member', viewer: 'Viewer' }[myRole()] || 'No access')}</small></div><button class="btn sm" data-theme2 aria-label="Switch light or dark">${ICON.moon}</button>${S.mode === 'cloud' ? `<button class="btn sm danger" data-signout2>Sign out</button>` : ''}</section>`;
+  const acct = `<section class="panel mecard">${st.logo ? `<img src="${esc(st.logo)}" alt="">` : `<span class="mark">${esc(initials(st.company_name || st.app_title))}</span>`}<div style="flex:1;min-width:0"><b style="display:block">${esc(st.company_name || st.app_title)}</b><small class="muted">${esc(m.name)} · ${esc({ admin: 'Developer admin', client_admin: 'Client admin', editor: 'Editor', member: 'Member', viewer: 'Viewer' }[realRole()] || 'No access')}</small></div><button class="btn sm" data-theme2 aria-label="Switch light or dark">${ICON.moon}</button>${S.mode === 'cloud' ? `<button class="btn sm danger" data-signout2>Sign out</button>` : ''}</section>`;
   return { title: 'More', after: () => { $('[data-pushon]')?.addEventListener('click', enablePush);  $('[data-signout2]')?.addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); }); $('[data-theme2]')?.addEventListener('click', () => { const nx = (document.documentElement.dataset.theme || 'light') === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = nx; S.ui.theme3 = nx; saveUI(); render(); }); }, html: acct + pushPanel() + items.map(([k, a, b]) => `<a class="choice" href="#/${k}" style="display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit"><span style="width:24px;color:var(--steel)">${ICON[{ rmplan: 'rm', purchase: 'po', process: 'process', accounts: 'money' }[k] || k]}</span><span><b>${a}</b><span>${b}</span></span></a>`).join('') };
 }
 
@@ -3474,13 +3482,16 @@ end $$;
 create or replace function app_role() returns text language sql stable security definer set search_path = public as
 $$ select case
      when r.role is null then 'none'
-     when r.role = 'admin' then 'admin'
+     when r.role in ('admin','client_admin') then 'admin'   -- a client admin works as an admin for data; settings are limited by the policies below
      when lower(coalesce(auth.jwt()->>'email','')) like '%@users.vahan.invalid'
           then case when coalesce((select value from app_settings where key = 'login_username'), 'true'::jsonb) = 'true'::jsonb then r.role else 'none' end
      else case when coalesce((select value from app_settings where key = 'login_email'), 'true'::jsonb) = 'false'::jsonb then 'none' else r.role end
    end
    from (select (select role from profiles where id = auth.uid()) as role) r $$;
 -- admin-created username accounts sign in as <username>@users.vahan.invalid (no real mailbox)
+-- the role as stored: admin (= developer admin) | client_admin | editor | member | viewer | none
+create or replace function real_role() returns text language sql stable security definer set search_path = public as
+$$ select coalesce((select role from profiles where id = auth.uid()), 'none') $$;
 create or replace function my_team_id() returns uuid language sql stable security definer set search_path = public as
 $$ select id from team where lower(email) = lower(auth.jwt()->>'email')
       or (username is not null and lower(username) || '@users.vahan.invalid' = lower(auth.jwt()->>'email')) limit 1 $$;
@@ -3527,8 +3538,10 @@ do $$ declare t text; begin
   execute 'create policy "write" on activity for insert to authenticated with check (app_role() <> ''none'')';
   execute 'drop policy if exists "tidy" on activity';
   execute 'create policy "tidy" on activity for delete to authenticated using (app_role() = ''admin'')';
-  execute 'create policy "write" on app_settings for all to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
-  execute 'create policy "write" on profiles for update to authenticated using (app_role() = ''admin'') with check (app_role() = ''admin'')';
+  -- settings: the developer admin changes everything; a client admin only the sign-in switches and housekeeping flags
+  execute 'create policy "write" on app_settings for all to authenticated using (real_role() = ''admin'' or (real_role() = ''client_admin'' and key in (''login_email'',''login_username'',''digest_last'',''seeded'',''team_tags_seeded''))) with check (real_role() = ''admin'' or (real_role() = ''client_admin'' and key in (''login_email'',''login_username'',''digest_last'',''seeded'',''team_tags_seeded'')))';
+  -- roles: the developer admin sets any role; a client admin only none/viewer/member/editor, and never touches an admin or client admin
+  execute 'create policy "write" on profiles for update to authenticated using (real_role() = ''admin'' or (real_role() = ''client_admin'' and coalesce(role,''none'') in (''none'',''viewer'',''member'',''editor''))) with check (real_role() = ''admin'' or (real_role() = ''client_admin'' and coalesce(role,''none'') in (''none'',''viewer'',''member'',''editor'')))';
 end $$;
 -- TASKS ARE PRIVATE: only the person a task is assigned to, the person who assigned it, and admins can see or change it
 drop policy if exists "read" on tasks;
@@ -3598,9 +3611,11 @@ function offerPush() {
 
 /* ================= settings view ================= */
 function viewSettings() {
-  const tabs = [['company', 'Company & look'], ['rules', 'Alert rules'], ['lists', 'Lists'], ['notify', 'Notifications'], ...(S.mode === 'cloud' ? [['access', 'Users & access']] : []), ['data', 'Import & backup'], ['cloud', S.mode === 'cloud' ? 'Cloud connection' : 'Move to cloud'], ['help', 'Help']];
-  const tab = S.params.tab || S.ui.stab || 'company';
-  const locked = !isAdmin() && !['help'].includes(tab);
+  const allTabs = [['company', 'Company & look'], ['rules', 'Alert rules'], ['lists', 'Lists'], ['notify', 'Notifications'], ...(S.mode === 'cloud' ? [['access', 'Users & access']] : []), ['data', 'Import & backup'], ['cloud', S.mode === 'cloud' ? 'Cloud connection' : 'Move to cloud'], ['help', 'Help']];
+  const tabs = allTabs.filter(([k]) => isDev() || !DEV_TABS.includes(k));
+  let tab = S.params.tab || S.ui.stab || 'company';
+  if (!tabs.some(([k]) => k === tab)) tab = tabs[0]?.[0] || '';
+  const locked = !isAdmin() || !tab;
   const body = locked ? `<div class="panel"><div class="empty"><b>Only admins can change settings</b>You’re signed in as ${esc(myRole())}.</div></div>` : (SETTINGS_TABS[tab] || SETTINGS_TABS.company)();
   const html = `<div class="settings"><nav class="stabs">${tabs.map(([k, l]) => `<button data-stab="${k}" class="${k === tab ? 'on' : ''}">${l}</button>`).join('')}</nav><div>${body.html || body}</div></div>`;
   const after = () => {
@@ -3724,7 +3739,7 @@ const SETTINGS_TABS = {
   access() {
     return {
       html: `<p class="lede">Anyone with the app link can create an account. ${(S.settings.default_role || 'none') === 'none' ? 'New accounts see nothing (<b>none</b>) until you give them a role here.' : `New accounts currently start as <b>${esc(S.settings.default_role)}</b> and can see your data straight away — change this in Cloud connection → “New sign-ups start as”.`} For extra safety, turn off <b>Allow new users to sign up</b> in Supabase → Authentication → Sign In / Providers and invite people from there.</p>
-      <section class="panel"><div class="body"><dl class="kv"><dt>None</dt><dd>Waiting for approval — sees no data</dd><dt>Admin</dt><dd>Everything, including settings, lists and roles</dd><dt>Editor</dt><dd>Add and change parts, jobs, suppliers and team; assign tasks</dd><dt>Member</dt><dd>Sees everything; updates the tasks assigned to them</dd><dt>Viewer</dt><dd>Read-only — ideal for management</dd></dl>
+      <section class="panel"><div class="body"><dl class="kv"><dt>None</dt><dd>Waiting for approval — sees no data</dd><dt>Developer admin</dt><dd>Everything, including company look, alert rules, notifications, cloud connection, help and who is a client admin</dd><dt>Client admin</dt><dd>Everything except those five screens; can give Editor, Member or Viewer access. Only the developer admin can make someone a client admin</dd><dt>Editor</dt><dd>Add and change parts, jobs, suppliers and team; assign tasks</dd><dt>Member</dt><dd>Sees everything; updates the tasks assigned to them</dd><dt>Viewer</dt><dd>Read-only — ideal for management</dd></dl>
       <div class="row" style="margin-top:14px"><button class="btn" id="cp">Copy invite link</button><a class="btn wa" target="_blank" rel="noopener" href="${esc(waLink('', `Please sign up on our parts tracker: ${appLink('')}`))}">${ICON.wa}Share link on WhatsApp</a></div></div></section>
       <section class="panel" style="margin-top:16px"><header><h3>Sign-in methods</h3></header><div class="body" style="display:grid;gap:12px">
         <label class="switch"><input type="checkbox" data-set="login_email" ${S.settings.login_email !== false ? 'checked' : ''}> Allow sign-in with email (and new email sign-ups)</label>
@@ -3780,8 +3795,8 @@ const SETTINGS_TABS = {
         try {
           const { data: d0, error } = await sb.from('profiles').select('*').order('created_at'); if (error) throw error;
           const data = [...d0.filter(p => (p.role || 'none') === 'none'), ...d0.filter(p => (p.role || 'none') !== 'none')];
-          $('#profList').innerHTML = `<div class="panel tablewrap"><table class="dt"><thead><tr><th>Person</th><th>Role</th><th>Linked team member</th><th></th></tr></thead><tbody>${data.map(p => { const t = (S.data.team || []).find(x => norm(x.email) === norm(p.email) || (x.username && userEmail(x.username) === norm(p.email))); return `<tr><td class="first" data-label="Person"><span class="t">${esc(p.full_name || p.email)}</span>${(p.role || 'none') === 'none' ? ' <span class="chip amber">Waiting for access</span>' : ''}<small>${esc(p.email)}</small></td><td data-label="Role"><select class="sel" data-role="${p.id}" ${p.id === S.session.user.id ? 'disabled' : ''}>${['none', 'admin', 'editor', 'member', 'viewer'].map(r => `<option value="${r}" ${(p.role || 'none') === r ? 'selected' : ''}>${r === 'none' ? 'none (no access)' : r}</option>`).join('')}</select></td><td data-label="Team member">${t ? esc(t.name) : `<span class="muted">Not linked — add ${esc(isUserAcct(p.email) ? 'this username' : p.email)} on the Team page</span>`}</td><td class="acts"><button class="btn sm" data-editu="${p.id}">Edit</button> <button class="btn sm" data-resetpw="${p.id}" data-email="${esc(p.email)}">Reset password</button> ${p.id === S.session.user.id ? '' : `<button class="btn sm danger" data-delu="${p.id}">Delete</button>`}</td></tr>`; }).join('')}</tbody></table></div>`;
-          $$('[data-role]').forEach(s => s.onchange = async () => { const { error } = await sb.from('profiles').update({ role: s.value }).eq('id', s.dataset.role); error ? fail(error) : toast('Role updated.'); });
+          $('#profList').innerHTML = `<div class="panel tablewrap"><table class="dt"><thead><tr><th>Person</th><th>Role</th><th>Linked team member</th><th></th></tr></thead><tbody>${data.map(p => { const t = (S.data.team || []).find(x => norm(x.email) === norm(p.email) || (x.username && userEmail(x.username) === norm(p.email))); return `<tr><td class="first" data-label="Person"><span class="t">${esc(p.full_name || p.email)}</span>${(p.role || 'none') === 'none' ? ' <span class="chip amber">Waiting for access</span>' : ''}<small>${esc(p.email)}</small></td><td data-label="Role"><select class="sel" data-role="${p.id}" ${(p.id === S.session.user.id || (!isDev() && privRole(p.role))) ? 'disabled' : ''}>${roleChoices(p.role).map(r => `<option value="${r}" ${(p.role || 'none') === r ? 'selected' : ''}>${roleLabel(r)}</option>`).join('')}</select></td><td data-label="Team member">${t ? esc(t.name) : `<span class="muted">Not linked — add ${esc(isUserAcct(p.email) ? 'this username' : p.email)} on the Team page</span>`}</td><td class="acts">${(isDev() || !privRole(p.role) || p.id === S.session.user.id) ? `<button class="btn sm" data-editu="${p.id}">Edit</button> <button class="btn sm" data-resetpw="${p.id}" data-email="${esc(p.email)}">Reset password</button> ${p.id === S.session.user.id ? '' : `<button class="btn sm danger" data-delu="${p.id}">Delete</button>`}` : '<span class="muted" style="font-size:12px">Developer admin only</span>'}</td></tr>`; }).join('')}</tbody></table></div>`;
+          $$('[data-role]').forEach(s => s.onchange = async () => { if (!isDev() && privRole(s.value)) { toast('Only the developer admin can give admin access.', [], 5000, true); return render(); } const { error } = await sb.from('profiles').update({ role: s.value }).eq('id', s.dataset.role); error ? fail(error) : toast('Role updated.'); });
           $$('[data-resetpw]').forEach(b => b.onclick = async () => { const pw = prompt('New password for ' + b.dataset.email + ' (at least 6 characters). Their old password is not needed.'); if (!pw) return; if (pw.length < 6) return toast('At least 6 characters.', [], 3500, true); try { await callAdmin({ action: 'set_password', user_id: b.dataset.resetpw, password: pw }); toast('Password changed for ' + b.dataset.email + '. Share it with them securely.', [], 8000); } catch (e) { fail(e); } });
           const people = Object.fromEntries(data.map(p => [p.id, p]));
           $$('[data-editu]').forEach(b => b.onclick = () => {
@@ -4072,7 +4087,7 @@ async function boot() {
   S.session = session;
   const { data: prof } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
   S.profile = prof || { email: session.user.email, role: 'none' };
-  if (S.profile.role !== 'admin') {
+  if (!privRole(S.profile.role)) {
     let f = {};
     try { const { data: fl } = await sb.from('app_settings').select('key,value').in('key', ['login_email', 'login_username']); (fl || []).forEach(r => f[r.key] = r.value); } catch (e) { }
     const viaUser = isUserAcct(session.user.email);
