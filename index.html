@@ -3780,9 +3780,45 @@ const SETTINGS_TABS = {
         try {
           const { data: d0, error } = await sb.from('profiles').select('*').order('created_at'); if (error) throw error;
           const data = [...d0.filter(p => (p.role || 'none') === 'none'), ...d0.filter(p => (p.role || 'none') !== 'none')];
-          $('#profList').innerHTML = `<div class="panel tablewrap"><table class="dt"><thead><tr><th>Person</th><th>Role</th><th>Linked team member</th><th></th></tr></thead><tbody>${data.map(p => { const t = (S.data.team || []).find(x => norm(x.email) === norm(p.email)); return `<tr><td class="first" data-label="Person"><span class="t">${esc(p.full_name || p.email)}</span>${(p.role || 'none') === 'none' ? ' <span class="chip amber">Waiting for access</span>' : ''}<small>${esc(p.email)}</small></td><td data-label="Role"><select class="sel" data-role="${p.id}" ${p.id === S.session.user.id ? 'disabled' : ''}>${['none', 'admin', 'editor', 'member', 'viewer'].map(r => `<option value="${r}" ${(p.role || 'none') === r ? 'selected' : ''}>${r === 'none' ? 'none (no access)' : r}</option>`).join('')}</select></td><td data-label="Team member">${t ? esc(t.name) : `<span class="muted">Not linked — add ${esc(p.email)} on the Team page</span>`}</td><td class="acts"><button class="btn sm" data-resetpw="${p.id}" data-email="${esc(p.email)}">Reset password</button></td></tr>`; }).join('')}</tbody></table></div>`;
+          $('#profList').innerHTML = `<div class="panel tablewrap"><table class="dt"><thead><tr><th>Person</th><th>Role</th><th>Linked team member</th><th></th></tr></thead><tbody>${data.map(p => { const t = (S.data.team || []).find(x => norm(x.email) === norm(p.email) || (x.username && userEmail(x.username) === norm(p.email))); return `<tr><td class="first" data-label="Person"><span class="t">${esc(p.full_name || p.email)}</span>${(p.role || 'none') === 'none' ? ' <span class="chip amber">Waiting for access</span>' : ''}<small>${esc(p.email)}</small></td><td data-label="Role"><select class="sel" data-role="${p.id}" ${p.id === S.session.user.id ? 'disabled' : ''}>${['none', 'admin', 'editor', 'member', 'viewer'].map(r => `<option value="${r}" ${(p.role || 'none') === r ? 'selected' : ''}>${r === 'none' ? 'none (no access)' : r}</option>`).join('')}</select></td><td data-label="Team member">${t ? esc(t.name) : `<span class="muted">Not linked — add ${esc(isUserAcct(p.email) ? 'this username' : p.email)} on the Team page</span>`}</td><td class="acts"><button class="btn sm" data-editu="${p.id}">Edit</button> <button class="btn sm" data-resetpw="${p.id}" data-email="${esc(p.email)}">Reset password</button> ${p.id === S.session.user.id ? '' : `<button class="btn sm danger" data-delu="${p.id}">Delete</button>`}</td></tr>`; }).join('')}</tbody></table></div>`;
           $$('[data-role]').forEach(s => s.onchange = async () => { const { error } = await sb.from('profiles').update({ role: s.value }).eq('id', s.dataset.role); error ? fail(error) : toast('Role updated.'); });
           $$('[data-resetpw]').forEach(b => b.onclick = async () => { const pw = prompt('New password for ' + b.dataset.email + ' (at least 6 characters). Their old password is not needed.'); if (!pw) return; if (pw.length < 6) return toast('At least 6 characters.', [], 3500, true); try { await callAdmin({ action: 'set_password', user_id: b.dataset.resetpw, password: pw }); toast('Password changed for ' + b.dataset.email + '. Share it with them securely.', [], 8000); } catch (e) { fail(e); } });
+          const people = Object.fromEntries(data.map(p => [p.id, p]));
+          $$('[data-editu]').forEach(b => b.onclick = () => {
+            const p = people[b.dataset.editu], isU = isUserAcct(p.email), cur = isU ? p.email.split('@')[0] : p.email;
+            const m = openModal(`<h2>Edit ${esc(p.full_name || cur)}</h2>
+              <div class="field"><label for="eu_name">Full name</label><input id="eu_name" autocomplete="off" value="${esc(p.full_name || '')}"></div>
+              <div class="field" style="margin-top:10px"><label for="eu_id">${isU ? 'Username' : 'Email'}</label><input id="eu_id" autocomplete="off" autocapitalize="none" spellcheck="false" value="${esc(cur)}"></div>
+              <div class="field" style="margin-top:10px"><label for="eu_pw">New password <span class="muted">(leave empty to keep the old one)</span></label><input id="eu_pw" type="text" autocomplete="off" placeholder="at least 6 characters"></div>
+              <p id="eu_msg" class="muted" style="min-height:1.2em;margin:8px 0 0"></p>
+              <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-n>Cancel</button><button class="btn pri" data-y>Save</button></div>`);
+            m.querySelector('[data-n]').onclick = closeOverlay;
+            m.querySelector('[data-y]').onclick = async () => {
+              const name = $('#eu_name').value.trim(), id = $('#eu_id').value.trim().toLowerCase(), pw = $('#eu_pw').value, msg = $('#eu_msg');
+              msg.style.color = 'var(--red)';
+              if (!name) return msg.textContent = 'Enter a name.';
+              if (isU ? !/^[a-z0-9._-]{3,30}$/.test(id) : !id.includes('@')) return msg.textContent = isU ? 'Username: 3–30 letters, numbers, dot, dash or underscore.' : 'Enter a valid email address.';
+              if (pw && pw.length < 6) return msg.textContent = 'Password needs at least 6 characters.';
+              msg.style.color = ''; msg.textContent = 'Saving…'; m.querySelector('[data-y]').disabled = true;
+              try {
+                const body = { action: 'update', user_id: p.id, full_name: name };
+                if (isU) body.new_username = id; else body.new_email = id;
+                if (pw) body.password = pw;
+                await callAdmin(body);
+                if (isU && id !== cur) { const t = (S.data.team || []).find(x => norm(x.username) === norm(cur)); if (t) await DB.update('team', t.id, { username: id }); }
+                closeOverlay(); toast('Saved.'); render();
+              } catch (e) { msg.style.color = 'var(--red)'; msg.textContent = e.message; m.querySelector('[data-y]').disabled = false; }
+            };
+          });
+          $$('[data-delu]').forEach(b => b.onclick = async () => {
+            const p = people[b.dataset.delu], label = p.full_name || p.email;
+            if (!(await confirmBox('Delete ' + label + '?', 'They will no longer be able to sign in. Their tasks and work stay, and the team member record is not deleted.', 'Delete'))) return;
+            try {
+              await callAdmin({ action: 'delete', user_id: p.id });
+              if (isUserAcct(p.email)) { const un = p.email.split('@')[0]; const t = (S.data.team || []).find(x => norm(x.username) === norm(un)); if (t) await DB.update('team', t.id, { username: null }); }
+              toast('Deleted ' + label + '.'); render();
+            } catch (e) { fail(e); }
+          });
         } catch (e) { $('#profList').innerHTML = `<div class="panel"><div class="empty">Couldn’t load people: ${esc(e.message)}</div></div>`; }
       }
     };
