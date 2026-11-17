@@ -594,6 +594,7 @@ const SCHEMA = {
     F('customer', 'Customer', 'select', { group: 'Order', opts: () => (S.data.customers || []).map(c => c.name).sort(), addLink: 'customers' }),
     F('customer_po', 'Customer PO / ref.', 'text', { group: 'Order' }),
     F('project', 'Jig / fixture (project)', 'text', { req: 1, full: 1, group: 'Order', hint: 'The name used on drawings and in the tracker.' }),
+    F('ga_drawing_no', 'GA drawing no.', 'text', { group: 'Order', hint: 'General-assembly drawing number of this jig / fixture.' }),
     F('qty', 'Qty (sets)', 'number', { group: 'Order', def: () => 1 }),
     F('order_value', 'Order value', 'number', { group: 'Order' }),
     F('delivery_date', 'Committed delivery date', 'date', { req: 1, group: 'Delivery', hint: 'Drives the delivery alerts and on-time delivery rate.' }),
@@ -612,9 +613,7 @@ const SCHEMA = {
   parts: [
     F('order_id', 'Order', 'order', { group: 'Drawing', hint: 'Links the part to its jig / fixture order.' }),
     F('drawing_no', 'Drawing no.', 'text', { req: 1, group: 'Drawing', hint: 'Child-part drawing number.' }),
-    F('ga_drawing_no', 'GA drawing no.', 'text', { group: 'Drawing' }),
     F('part_name', 'Part name', 'text', { req: 1, group: 'Drawing' }),
-    F('project', 'Project', 'text', { group: 'Drawing', hint: 'Filled from the order.' }),
     F('type', 'Type', 'select', { group: 'Size & material', opts: () => mvals('part_type') }),
     F('grade', 'Material grade', 'select', { group: 'Size & material', opts: () => (S.data.materials || []).map(m => m.grade).sort(), addLink: 'materials' }),
     F('dia', 'Dia Ø (mm)', 'number', { group: 'Size & material', hint: 'For rods. Leave empty for plates.' }),
@@ -1439,6 +1438,7 @@ function openRecord(table, rec = null, opts = {}) {
     if (raw.location_url && !safeUrl(raw.location_url)) { form.querySelector('[data-field="location_url"]')?.classList.add('bad'); toast('The map link must start with https://', [], 3500, true); return; }
     const row = computeRow(table, raw);
     if (table === 'operations') { if (rec._part_id || base._part_id) { row.part_id = rec._part_id || base._part_id; row.order_id = rec._order_id ?? base._order_id ?? row.order_id; } else if (!rec.part_id) { const p = partByDrg(row.drawing_no); if (p) { row.part_id = p.id; row.order_id = p.order_id; } } if (isNew) row.assigned_by = me().name; if ((row.owner_member || row.supplier) && row.status === 'Planned') row.status = 'Assigned'; if (row.status === 'Done') row.progress = 100; if (rec.target_date !== row.target_date || rec.status !== row.status) row.alert_state = null; }
+    if (table === 'orders' && (S.data.orders || []).length && !('ga_drawing_no' in S.data.orders[0])) delete row.ga_drawing_no; /* column not added in the database yet */
     if (table === 'parts' && row.order_id && !row.project) row.project = orderById(row.order_id)?.project || null;
     if (table === 'tasks' && row.status === 'Done' && rec?.status !== 'Done') row.completed_at = new Date().toISOString();
     ev.target.disabled = true;
@@ -2633,10 +2633,10 @@ function viewMore() {
 
 /* ================= 1. orders ================= */
 const noOpenOrders = () => (S.data.orders || []).length && !(S.data.orders || []).some(o => !ORDER_DONE.has(o.status));
-const orderGA = o => uniq(partsOfOrder(o).map(p => (p.ga_drawing_no || '').trim()));
+const orderGA = o => (o.ga_drawing_no || '').trim() ? [o.ga_drawing_no.trim()] : uniq(partsOfOrder(o).map(p => (p.ga_drawing_no || '').trim()));
 function viewOrders() {
   const f = S.params.f || S.ui.o_f || (noOpenOrders() ? 'done' : 'open'), q = S.ui.q_ord || '';
-  let rows = (S.data.orders || []).filter(o => (f === 'all' || (f === 'open' ? !ORDER_DONE.has(o.status) : f === 'late' ? orderLight(o) === 'red' : ORDER_DONE.has(o.status))) && (matchQ(o, q, ['order_no', 'project', 'customer', 'customer_po']) || orderGA(o).some(g => norm(g).includes(norm(q)))));
+  let rows = (S.data.orders || []).filter(o => (f === 'all' || (f === 'open' ? !ORDER_DONE.has(o.status) : f === 'late' ? orderLight(o) === 'red' : ORDER_DONE.has(o.status))) && (matchQ(o, q, ['order_no', 'project', 'customer', 'customer_po', 'ga_drawing_no']) || orderGA(o).some(g => norm(g).includes(norm(q)))));
   if (!S.ui.sort_ord) rows.sort((a, b) => f === 'open' ? (a.delivery_date || '9').localeCompare(b.delivery_date || '9') : (b.order_date || '').localeCompare(a.order_date || ''));
   const cols = [
     ...(canEdit() && f !== 'open' ? [{ key: 'sel', label: '', cls: 'sel', html: o => ORDER_DONE.has(o.status) ? `<input type="checkbox" data-osel="${o.id}" aria-label="Select">` : '' }] : []),
@@ -3468,10 +3468,12 @@ create table if not exists customers (id uuid primary key default gen_random_uui
 create table if not exists materials (id uuid primary key default gen_random_uuid(), grade text not null, rate_per_kg numeric, stock_kg numeric default 0, min_stock_kg numeric, density_factor numeric, preferred_supplier text, remarks text, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists orders (id uuid primary key default gen_random_uuid(), order_no text, order_date date, customer text, customer_po text, project text, qty numeric, order_value numeric, delivery_date date, owner uuid, status text default 'Open', delivered_date date, invoice_no text, invoice_date date, invoice_amount numeric, credit_days numeric, received_amount numeric, received_date date, remarks text, alert_state text, created_by text, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists parts (id uuid primary key default gen_random_uuid(), order_id uuid, drawing_no text, ga_drawing_no text, project text, part_name text, type text, grade text, dia numeric, length numeric, width numeric, thk numeric, qty numeric, planned_weight numeric, cost_per_kg numeric, cutting_charge numeric, planned_cost numeric, rm_source text, po_id uuid, actual_weight numeric, actual_rate numeric, actual_cost numeric, rm_received_date date, order_date date, target_date date, remarks text, created_by text, created_at timestamptz default now(), updated_at timestamptz default now());
+alter table orders add column if not exists ga_drawing_no text;
 alter table parts add column if not exists order_id uuid;
 alter table parts add column if not exists rm_source text;
 alter table parts add column if not exists po_id uuid;
 alter table parts add column if not exists actual_rate numeric;
+update orders o set ga_drawing_no = (select min(p.ga_drawing_no) from parts p where p.order_id = o.id and coalesce(p.ga_drawing_no,'') <> '') where coalesce(o.ga_drawing_no,'') = '';
 alter table parts add column if not exists rm_received_date date;
 create table if not exists purchase_orders (id uuid primary key default gen_random_uuid(), po_no text, po_date date, supplier text, order_id uuid, expected_date date, status text default 'Draft', lines jsonb default '[]', total numeric, remarks text, created_by text, created_at timestamptz default now(), updated_at timestamptz default now());
 create table if not exists grns (id uuid primary key default gen_random_uuid(), grn_no text, grn_date date, po_id uuid, supplier text, lines jsonb default '[]', bill_no text, bill_date date, bill_amount numeric, credit_days numeric, paid_amount numeric, paid_date date, remarks text, created_by text, created_at timestamptz default now(), updated_at timestamptz default now());
