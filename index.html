@@ -1426,11 +1426,11 @@ function openRecord(table, rec = null, opts = {}) {
   if (!writable) $$('input,select,textarea', form).forEach(x => x.disabled = true);
   wireForm(form, table, base);
   if (table === 'team') addContactMask(form);
-  d.querySelector('[data-cancel]').onclick = closeOverlay;
+  d.querySelector('[data-cancel]').onclick = () => { closeOverlay(); opts.back?.(); };
   form.addEventListener('submit', e => { e.preventDefault(); d.querySelector('[data-save]')?.click(); });
   d.querySelector('[data-del]')?.addEventListener('click', async () => {
     if (!(await confirmBox(`Delete this ${names[table]}?`, 'This removes it for everyone and cannot be undone.'))) return;
-    try { await DB.remove(table, rec.id); await logActivity('deleted', table, rec, `${names[table]} ${title}`); toast(`Deleted ${names[table]}.`); render(); } catch (e) { fail(e, 'Delete failed'); }
+    try { await DB.remove(table, rec.id); await logActivity('deleted', table, rec, `${names[table]} ${title}`); toast(`Deleted ${names[table]}.`); closeOverlay(); render(); opts.back?.(); } catch (e) { fail(e, 'Delete failed'); }
   });
   d.querySelector('[data-save]')?.addEventListener('click', async ev => {
     const raw = readForm(form, table); let bad = false;
@@ -1449,6 +1449,7 @@ function openRecord(table, rec = null, opts = {}) {
       closeOverlay(); render();
       await afterSave(table, saved, isNew ? {} : rec);
       opts.onSaved?.(saved);
+      opts.back?.();
       if (!S._toasted) toast(isNew ? `Saved ${names[table]}.` : 'Changes saved.'); S._toasted = false;
     } catch (e) { ev.target.disabled = false; fail(e, 'Save failed'); }
   });
@@ -2632,13 +2633,15 @@ function viewMore() {
 
 /* ================= 1. orders ================= */
 const noOpenOrders = () => (S.data.orders || []).length && !(S.data.orders || []).some(o => !ORDER_DONE.has(o.status));
+const orderGA = o => uniq(partsOfOrder(o).map(p => (p.ga_drawing_no || '').trim()));
 function viewOrders() {
   const f = S.params.f || S.ui.o_f || (noOpenOrders() ? 'done' : 'open'), q = S.ui.q_ord || '';
-  let rows = (S.data.orders || []).filter(o => (f === 'all' || (f === 'open' ? !ORDER_DONE.has(o.status) : f === 'late' ? orderLight(o) === 'red' : ORDER_DONE.has(o.status))) && matchQ(o, q, ['order_no', 'project', 'customer', 'customer_po']));
+  let rows = (S.data.orders || []).filter(o => (f === 'all' || (f === 'open' ? !ORDER_DONE.has(o.status) : f === 'late' ? orderLight(o) === 'red' : ORDER_DONE.has(o.status))) && (matchQ(o, q, ['order_no', 'project', 'customer', 'customer_po']) || orderGA(o).some(g => norm(g).includes(norm(q)))));
   if (!S.ui.sort_ord) rows.sort((a, b) => f === 'open' ? (a.delivery_date || '9').localeCompare(b.delivery_date || '9') : (b.order_date || '').localeCompare(a.order_date || ''));
   const cols = [
     ...(canEdit() && f !== 'open' ? [{ key: 'sel', label: '', cls: 'sel', html: o => ORDER_DONE.has(o.status) ? `<input type="checkbox" data-osel="${o.id}" aria-label="Select">` : '' }] : []),
     { key: 'order_no', label: 'Order', first: 1, html: o => `<span class="t">${esc(o.order_no)} · ${esc(o.project)}</span><small>${esc(o.customer || 'No customer')}${o.customer_po ? ' · PO ' + esc(o.customer_po) : ''}</small>` },
+    { key: 'ga_drawing_no', label: 'GA drawing no.', hideM: 1, val: o => orderGA(o).join(', '), html: o => { const g = orderGA(o); return g.length ? `<span class="num">${esc(g[0])}</span>${g.length > 1 ? `<small>+${g.length - 1} more</small>` : ''}` : '<span class="muted">—</span>'; } },
     { key: 'order_date', label: 'Ordered', hideM: 1, html: o => `<span class="num">${fmtD(o.order_date)}</span>` },
     { key: 'delivery_date', label: 'Delivery', html: o => { const d = o.delivery_date && !ORDER_DONE.has(o.status) ? daysBetween(today(), o.delivery_date) : null; return `<span class="num">${fmtD(o.delivery_date)}</span>${d != null ? `<small class="${d < 0 ? 'tred' : d <= 7 ? 'tamber' : ''}">${d < 0 ? -d + ' d late' : d + ' d left'}</small>` : o.delivered_date ? `<small>delivered ${fmtD(o.delivered_date)}</small>` : ''}`; } },
     { key: 'parts', label: 'Parts', cls: 'r num', val: o => partsOfOrder(o).length, html: o => fmtN(partsOfOrder(o).length) },
@@ -2648,7 +2651,7 @@ function viewOrders() {
   ];
   const reopenBar = canEdit() && f !== 'open' && rows.some(o => ORDER_DONE.has(o.status)) ? `<div class="panel" style="margin-bottom:12px"><div class="body row"><span style="flex:1;min-width:220px">Tick orders that are <b>still running</b> and reopen them — they come back into the RM plan, process plan, tracker, alerts and dashboard. Set the new delivery date on each.</span><button class="btn pri" data-reopen disabled>Reopen selected</button></div></div>` : '';
   const html = `${flowStrip('orders')}${reopenBar}<p class="lede">Step 1 — the order register. Each jig or fixture order has a committed delivery date and a project owner who receives progress, delay and completion notifications. Open an order to run the whole workflow for it.</p>
-  <div class="toolbar">${seg('o_f', [['open', 'Open'], ['late', 'Late'], ['done', 'Delivered / closed'], ['all', 'All']], f)}${searchBox('ord', 'Search order, project, customer…')}<span class="spacer"></span>${expBtn('data-exp')}${addBtn('New order', 'data-new')}</div>
+  <div class="toolbar">${seg('o_f', [['open', 'Open'], ['late', 'Late'], ['done', 'Delivered / closed'], ['all', 'All']], f)}${searchBox('ord', 'Search order, project, customer, GA drawing…')}<span class="spacer"></span>${expBtn('data-exp')}${addBtn('New order', 'data-new')}</div>
   ${rows.length ? dataTable('ord', rows, cols, { onRow: o => go('order?id=' + o.id), lamp: o => { const l = orderLight(o); return l === 'done' ? '' : l; } }) : `<div class="panel"><div class="empty"><b>${(S.data.orders || []).length ? 'No orders match' : 'No orders yet'}</b>${canEdit() ? 'Record the jig or fixture order with its delivery date.' : ''}</div></div>`}`;
   const after = () => {
     $$('[data-osel]').forEach(i => { i.addEventListener('click', e => e.stopPropagation()); i.addEventListener('change', () => { const n = $$('[data-osel]:checked').length; const b = $('[data-reopen]'); if (b) { b.disabled = !n; b.textContent = n ? `Reopen ${n} order${n > 1 ? 's' : ''}` : 'Reopen selected'; } }); });
@@ -3007,7 +3010,7 @@ function openRoute(p) {
     $$('[data-s]', d).forEach(el => el.onchange = () => { const s = steps[+el.dataset.s]; s[el.dataset.k] = el.dataset.k === 'plan_rate' ? num(el.value) : el.value; if (el.dataset.k === 'process' || el.dataset.k === 'owner') { if (s.plan_rate == null) { const pm = procMaster(s.process); const hist = (S.data.operations || []).filter(x => norm(x.process) === norm(s.process) && num(x.actual_rate ?? x.plan_rate) != null).sort((a, b) => (b.done_date || '').localeCompare(a.done_date || '')); const same = hist.find(x => norm(x.drawing_no) === norm(p.drawing_no)) || (s.owner?.startsWith('s:') && hist.find(x => norm(x.supplier) === norm(s.owner.slice(2)))); s.plan_rate = same ? num(same.actual_rate ?? same.plan_rate) : num(pm?.extra?.rate_per_part); } if (el.dataset.k === 'process' && !s.owner) { const pm = procMaster(s.process); const prev = (S.data.operations || []).filter(x => norm(x.process) === norm(s.process)).sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0]; if (prev) s.owner = ownerKey(prev); } redraw(); } });
     $$('[data-rm]', d).forEach(b => b.onclick = () => { const s = steps[+b.dataset.rm]; if (s.id) s._del = true; else steps.splice(+b.dataset.rm, 1); redraw(); });
     $$('[data-up]', d).forEach(b => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]]; redraw(); } });
-    $$('[data-open]', d).forEach(b => b.onclick = () => openRecord('operations', S.data.operations.find(x => x.id === steps[+b.dataset.open].id), { extraActions: opActions }));
+    $$('[data-open]', d).forEach(b => b.onclick = () => openRecord('operations', S.data.operations.find(x => x.id === steps[+b.dataset.open].id), { extraActions: opActions, back: () => openRoute(partById(p.id)) }));
   };
   const redraw = () => { $('#rsteps', d).innerHTML = rows(); wire(); };
   wire();
