@@ -1637,7 +1637,7 @@ const liveRefresh = debounce(() => { if ($('.drawer') || $('.modal')) return; S.
 /* ================= shared view helpers ================= */
 const QA = new Map(); let qaN = 0;
 /** quick-action button that runs a JS function (no inline code) */
-function qa(label, fn, cls = 'btn') { const k = 'q' + (++qaN); QA.set(k, fn); if (QA.size > 400) QA.delete(QA.keys().next().value); return `<button type="button" class="${cls}" data-qa="${k}">${label}</button>`; }
+function qa(label, fn, cls = 'btn') { const k = 'q' + (++qaN); QA.set(k, fn); if (QA.size > 8000) QA.delete(QA.keys().next().value); return `<button type="button" class="${cls}" data-qa="${k}">${label}</button>`; }
 document.addEventListener('click', e => { const b = e.target.closest('[data-qa]'); if (b && QA.has(b.dataset.qa)) { e.preventDefault(); e.stopPropagation(); QA.get(b.dataset.qa)(b); } });
 function searchBox(id, ph) { return `<div class="search">${ICON.search}<input data-search="${id}" placeholder="${esc(ph)}" value="${esc(S.ui['q_' + id] || '')}" aria-label="${esc(ph)}"></div>`; }
 function seg(id, options, cur) { return `<div class="seg" data-seg="${id}">${options.map(([v, l]) => `<button data-v="${esc(v)}" class="${v === cur ? 'on' : ''}">${esc(l)}</button>`).join('')}</div>`; }
